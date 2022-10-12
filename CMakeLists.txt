@@ -45,6 +45,9 @@ set(CMAKE_MODULE_PATH ${oo_dmp_bbo_SOURCE_DIR}/cmake/modules "${CMAKE_SOURCE_DIR
 include_directories(${CMAKE_SOURCE_DIR}/src)
 link_directories(${CMAKE_SOURCE_DIR}/lib)
 
+include_directories(/opt/ros/melodic/include /opt/ros/melodic/lib)
+include_directories(/opt/pal/ferrum/include /opt/pal/ferrum/lib)
+
 IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   SET(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR} CACHE PATH "Comment" FORCE)
 ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -59,6 +62,7 @@ include_directories ( ${Boost_INCLUDE_DIRS} )
 add_subdirectory(src)
 add_subdirectory(demos)
 add_subdirectory(tests)
+add_subdirectory(examples/reaching_task)
 
 ###############################################################################
 # Generate doxygen documentation from CMake
