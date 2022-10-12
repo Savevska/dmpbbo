@@ -33,15 +33,22 @@ class Trajectory:
             raise ValueError("ys.shape[0] must have size {n_time_steps}")
         _dt_mean = np.mean(np.diff(ts))
 
+        if ys.ndim == 1:
+            ys = ys.reshape((n_time_steps, 1))
+
         if yds is None:
             yds = diffnc(ys, _dt_mean)
         else:
+            if yds.ndim == 1:
+                yds = yds.reshape((n_time_steps, 1))
             if ys.shape != yds.shape:
                 raise ValueError("yds must have same shape as ys {ys.shape}")
 
         if ydds is None:
             ydds = diffnc(yds, _dt_mean)
         else:
+            if ydds.ndim == 1:
+                ydds = ydds.reshape((n_time_steps, 1))
             if ys.shape != ydds.shape:
                 raise ValueError("ydds must have same shape as ys {ys.shape}")
 
@@ -134,7 +141,11 @@ class Trajectory:
 
         @return: true if trajectoriy has miscellaneous variables, false otherwise.
         """
-        return self._misc is not None
+        if not isinstance(self._misc, np.ndarray):
+            return False
+
+        # shape of N x 0 counts as not having misc
+        return np.prod(self._misc.shape) > 0
 
     @property
     def length(self):
@@ -166,10 +177,10 @@ class Trajectory:
 
         @return: The number of dimensions of the miscellaneous variables in the trajectory.
         """
-        if self._misc is None:
-            return 0
-        else:
+        if self.has_misc():
             return self._misc.shape[1]
+        else:
+            return 0
 
     @property
     def y_init(self):
@@ -384,7 +395,8 @@ class Trajectory:
 
         @param trajectory:  The trajectory to append.
         """
-        self._ts = np.concatenate((self._ts, trajectory.ts))
+        ts_appended = trajectory.ts +  (self._ts[-1] - trajectory.ts[0])
+        self._ts = np.concatenate((self._ts, ts_appended))
         self._ys = np.concatenate((self._ys, trajectory.ys))
         self._yds = np.concatenate((self._yds, trajectory.yds))
         self._ydds = np.concatenate((self._ydds, trajectory.ydds))
@@ -403,7 +415,7 @@ class Trajectory:
         """
         as_matrix = np.column_stack((self._ts, self._ys, self._yds, self._ydds))
         if self._misc is not None:
-            np.column_stack((as_matrix, self._misc))
+            as_matrix = np.column_stack((as_matrix, self._misc))
         return as_matrix
 
     def savetxt(self, filename):
@@ -470,7 +482,7 @@ class Trajectory:
         """
         if not axs:
             n_plots = 4 if self.has_misc() else 3
-            fig = plt.figure(figsize=(5*n_plots, 4))
+            fig = plt.figure(figsize=(5 * n_plots, 4))
             axs = [fig.add_subplot(1, n_plots, i + 1) for i in range(n_plots)]
 
         """Plot a trajectory"""
