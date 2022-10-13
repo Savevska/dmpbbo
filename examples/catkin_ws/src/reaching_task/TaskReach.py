@@ -25,9 +25,9 @@ class TaskReach(Task):
     def evaluate_rollout(self,cost_vars,sample):
         # self.ref_cop_ = np.loadtxt("/home/ksavevska/catkin_ws/src/rgbd_motion_imitation/src/zmp_ref.txt")
         # print("Reference CoP", self.ref_cop_)
-        
-        n_dims = self.traj_demonstrated_._dim#n_dims = 13
-        n_misc = self.traj_demonstrated_.dim_misc#n_misc = 5
+        self.ee_pos_goal_ = [0.65, -0.4, 0.0] 
+        n_dims = 30#self.traj_demonstrated_.dim_#n_dims = 13
+        n_misc = 11#self.traj_demonstrated_.dim_misc()#n_misc = 5
         n_time_steps = cost_vars.shape[0]
         
         ts = cost_vars[:,0]
@@ -72,11 +72,22 @@ class TaskReach(Task):
         y_cost = abs(((2*cop_y - self.sp_y_1 - self.sp_y_2)/(self.sp_y_2 - self.sp_y_1))**3)
         stability_cost = 0.6*x_cost + 0.4*y_cost
 
+        # dist_to_ref_cop = (1/len(cost_vars))*np.sqrt((cop_x - self.ref_cop_[0])**2 + (cop_y-self.ref_cop_[1])**2)
 
+        stability_cost = [0]*len(cop_x)
+        for i in range(len(cop_x)):
+            if cop_x[i] > self.sp_x_1 and cop_x[i] < self.sp_x_2 and cop_y[i] > self.sp_y_1 and cop_y[i] < self.sp_y_2:
+                if min(abs(self.sp_x_1-cop_x[i]), abs(self.sp_x_2-cop_x[i]), abs(self.sp_y_1-cop_y[i]), abs(self.sp_y_2-cop_y[i])) > 0.0095:
+                    stability_cost[i] = (min(x_size/2, (self.sp_y_2-self.sp_y_1)/2) / (min(abs(self.sp_x_1-cop_x[i]), abs(self.sp_x_2-cop_x[i]), abs(self.sp_y_1-cop_y[i]), abs(self.sp_y_2-cop_y[i]))) - 1)**2
+                else:
+                    stability_cost[i] = 100
+            else:
+                stability_cost[i] = 100
+        stability_cost = np.array(stability_cost)
         # goal cost (euclidean distance from the goal ee position)
         # TODO: add margins
-        dist_to_goal = np.sqrt((ee_pos_x - self.ee_pos_goal_[0])**2 + (ee_pos_y-self.ee_pos_goal_[1])**2 + (ee_pos_z-self.ee_pos_goal_[2])**2)
-
+        # dist_to_goal = np.sqrt((ee_pos_x - self.ee_pos_goal_[0])**2 + (ee_pos_y-self.ee_pos_goal_[1])**2 + (ee_pos_z-self.ee_pos_goal_[2])**2)
+        dist_to_goal = (np.sqrt((ee_pos_x[-1] - self.ee_pos_goal_[0])**2 + (ee_pos_y[-1]-self.ee_pos_goal_[1])**2 + (ee_pos_z[-1]-self.ee_pos_goal_[2])**2))
         # trajectory cost (difference between the demonstrated trajectory and executed trajectory)
         # TODO: add margins
         dist_to_traj = np.sum([abs(joint_states[i] - self.traj_demonstrated_._ys[i]) for i in range(len(self.traj_demonstrated_._ys))], axis=0)

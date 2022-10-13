@@ -57,7 +57,7 @@ python3 step4_prepare_optimization.py ${D}
 
 ################################################################################
 # STEP 5: Run the optimization
-for i_update in $(seq -f "%05g" 0 15)
+for i_update in $(seq -f "%05g" 0 99)
 do
   
   # Run the sampled DMPs on the robot
@@ -66,7 +66,7 @@ do
   # ../../bin/robotExecuteDmp ${DU}/eval_dmp_for_cpp.json ${DU}/eval_cost_vars.txt
   python3 robotExecuteDmpReaching.py ${DU}/eval_dmp.json ${DU}/eval_cost_vars.txt
   # Samples rollouts
-  for i in $(seq -f "%03g" 0 4)
+  for i in $(seq -f "%03g" 0 29)
   do
     # ../../bin/robotExecuteDmp ${DU}/${i}_dmp_for_cpp.json ${DU}/${i}_cost_vars.txt
     python3 robotExecuteDmpReaching.py ${DU}/${i}_dmp.json ${DU}/${i}_cost_vars.txt

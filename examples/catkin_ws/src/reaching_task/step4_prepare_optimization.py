@@ -46,19 +46,19 @@ def main():
     with open(filename, "r") as f:
         dmp = jsonpickle.decode(f.read())
 
-    n_samples_per_update = 5
+    n_samples_per_update = 30
 
     updater_name = "decay"
     if updater_name == "mean":
         updater = UpdaterMean(eliteness=10, weighting="PI-BB")
     elif updater_name == "decay":
-        updater = UpdaterCovarDecay(eliteness=10, weighting="PI-BB", covar_decay_factor=0.8)
+        updater = UpdaterCovarDecay(eliteness=10, weighting="PI-BB", covar_decay_factor=0.9)
     else:
         updater = UpdaterCovarAdaptation(
             eliteness=10,
             weighting="PI-BB",
-            max_level=20.0,
-            min_level=0.1,
+            max_level=1.0,
+            min_level=0.01,
             diag_only=False,
             learning_rate=0.5,
         )

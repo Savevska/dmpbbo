@@ -37,14 +37,14 @@ def main():
 
     args = parser.parse_args()
 
-    ee_pos_goal = [0.85, -0.2, 1.0] 
+    ee_pos_goal = [0.65, -0.4, 0.0] 
     pos_margin = 0
     ref_cop = [0.0, 0.0]
-    stability_weight = 0.3
-    goal_weight = 0.7
-    traj_weight = 0.0
+    stability_weight = 0.001
+    goal_weight = 1000
+    traj_weight = 10 
 
-    traj_demonstrated = Trajectory.loadtxt(args.traj_filename)
+    traj_demonstrated = Trajectory.loadtxt(args.traj_filename, 0)
     task = TaskReach(ee_pos_goal, pos_margin, ref_cop, stability_weight, goal_weight, traj_weight, traj_demonstrated)
 
     # Save the task instance itself
