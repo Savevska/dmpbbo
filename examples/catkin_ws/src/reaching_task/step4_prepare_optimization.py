@@ -52,7 +52,7 @@ def main():
     if updater_name == "mean":
         updater = UpdaterMean(eliteness=10, weighting="PI-BB")
     elif updater_name == "decay":
-        updater = UpdaterCovarDecay(eliteness=10, weighting="PI-BB", covar_decay_factor=0.9)
+        updater = UpdaterCovarDecay(eliteness=10, weighting="PI-BB", covar_decay_factor=0.99)
     else:
         updater = UpdaterCovarAdaptation(
             eliteness=10,
@@ -60,7 +60,7 @@ def main():
             max_level=1.0,
             min_level=0.01,
             diag_only=False,
-            learning_rate=0.5,
+            learning_rate=0.3,
         )
 
     task_solver = None

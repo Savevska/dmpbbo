@@ -39,6 +39,7 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Float32
 from visualization_msgs.msg import Marker
 import tf2_ros
+from tf.transformations import euler_from_quaternion
 # import copy
 # import os
 
@@ -83,6 +84,8 @@ class DmpExecution:
     self.ydd_state = np.zeros((1,self.dmp.dim_y))
 
     self.ee_pos = np.array([[0.0, 0.0, 0.0]])
+    self.ee_rpy = np.array([[0.0, 0.0, 0.0]])
+
     self.lf_pos = np.array([[0.0, 0.0, 0.0]])
     self.rf_pos = np.array([[0.0, 0.0, 0.0]])
 
@@ -260,16 +263,18 @@ class DmpExecution:
         self.rate.sleep()
 
     self.ee_pos[0][:] = [self.trans.transform.translation.x, self.trans.transform.translation.y, self.trans.transform.translation.z]
+    self.ee_rpy[0][:] = euler_from_quaternion(self.trans.transform.rotation)
 
     self.lf_pos[0][:] = [self.trans_left.transform.translation.x, self.trans_left.transform.translation.y, self.trans_left.transform.translation.z]
     
     self.rf_pos[0][:] = [self.trans_right.transform.translation.x, self.trans_right.transform.translation.y, self.trans_right.transform.translation.z]
 
+
     # self.ee_pos = np.array([[self.trans.transform.translation.x, self.trans.transform.translation.y, self.trans.transform.translation.z]])
     # self.lf_pos = np.array([[self.trans_left.transform.translation.x, self.trans_left.transform.translation.y, self.trans_left.transform.translation.z]])
     # self.rf_pos = np.array([[self.trans_right.transform.translation.x, self.trans_right.transform.translation.y, self.trans_right.transform.translation.z]])
 
-    costs = np.column_stack((self.y_state, self.yd_state, self.ydd_state, self.zmp, self.ee_pos, self.lf_pos, self.rf_pos))
+    costs = np.column_stack((self.y_state, self.yd_state, self.ydd_state, self.zmp, self.ee_pos, self.ee_rpy, self.lf_pos, self.rf_pos))
     return costs[0].tolist()
   
   def reset_pose(self):

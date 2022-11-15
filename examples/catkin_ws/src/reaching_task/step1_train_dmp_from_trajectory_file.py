@@ -58,7 +58,8 @@ def main():
     traj._misc = None
     print(traj._misc)
     peak_to_peak = np.ptp(traj.ys, axis=0)  # Range of data; used later on
-
+    right_limb_final = [0.45102077060577095, -1.2677962295220508, 0.08608905862672511, -0.7722077471044404, 0.00823741156637503, -0.05063002474194711, 0.1065213803589149]
+    traj.ys[-1, 7:14] = right_limb_final
     mean_absolute_errors = []
     n_bfs_list = list(range(20, args.n + 1))
     for n_bfs in n_bfs_list:

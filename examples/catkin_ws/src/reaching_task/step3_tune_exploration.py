@@ -60,10 +60,10 @@ def main():
     # sigma_legs = np.tile(0.01, 12).reshape((1,-1))
     # sigma_torso = np.tile(0.6, 2).reshape((1,-1))
 
-    sigma_arms = np.array([[1.0, 1.0, 1.0, 1.0, 0.3, 0.3, 0.3, 1.0, 1.0, 1.0, 1.0, 0.3, 0.3, 0.3]])
-    sigma_head = np.tile(0.01, 2).reshape((1,-1))
-    sigma_legs = np.tile(0.3, 12).reshape((1,-1)) #0.01 for stable learning
-    sigma_torso = np.tile(0.8, 2).reshape((1,-1))
+    sigma_arms = 2*np.array([[1.0, 1.0, 1.0, 1.0, 0.3, 0.3, 0.3, 1.0, 1.0, 1.0, 1.0, 0.3, 0.3, 0.3]])
+    sigma_head = 2*np.tile(0.01, 2).reshape((1,-1))
+    sigma_legs = 2*np.tile(0.3, 12).reshape((1,-1)) #0.01 for stable learning
+    sigma_torso = 2*np.tile(0.8, 2).reshape((1,-1))
 
     sigma = np.column_stack((sigma_arms, sigma_head, sigma_legs, sigma_torso))
     sigma = np.tile(sigma, int(parameter_vector.size/sigma.size))

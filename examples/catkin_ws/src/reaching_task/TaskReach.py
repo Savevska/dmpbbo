@@ -3,6 +3,7 @@ from posixpath import join
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from math import pi
 from matplotlib.gridspec import GridSpec
 
 from dmpbbo.bbo_of_dmps.Task import Task
@@ -27,7 +28,7 @@ class TaskReach(Task):
         # print("Reference CoP", self.ref_cop_)
         self.ee_pos_goal_ = [0.65, -0.4, 0.0] 
         n_dims = 30#self.traj_demonstrated_.dim_#n_dims = 13
-        n_misc = 11#self.traj_demonstrated_.dim_misc()#n_misc = 5
+        n_misc = 14#self.traj_demonstrated_.dim_misc()#n_misc = 5
         n_time_steps = cost_vars.shape[0]
         
         ts = cost_vars[:,0]
@@ -38,6 +39,10 @@ class TaskReach(Task):
         ee_pos_x = cost_vars[:,-n_misc+2]
         ee_pos_y = cost_vars[:,-n_misc+3]
         ee_pos_z = cost_vars[:,-n_misc+4]
+
+        ee_rpy_x = cost_vars[:,-n_misc+5]
+        ee_rpy_y = cost_vars[:,-n_misc+6]
+        ee_rpy_z = cost_vars[:,-n_misc+7]
         
         # self.ref_cop_[0] = cost_vars[0, -n_misc+5]
         # self.ref_cop_[1] = cost_vars[0, -n_misc+6]
@@ -88,15 +93,22 @@ class TaskReach(Task):
         # TODO: add margins
         # dist_to_goal = np.sqrt((ee_pos_x - self.ee_pos_goal_[0])**2 + (ee_pos_y-self.ee_pos_goal_[1])**2 + (ee_pos_z-self.ee_pos_goal_[2])**2)
         dist_to_goal = (np.sqrt((ee_pos_x[-1] - self.ee_pos_goal_[0])**2 + (ee_pos_y[-1]-self.ee_pos_goal_[1])**2 + (ee_pos_z[-1]-self.ee_pos_goal_[2])**2))
+        
+        roll = pi/2
+        pitch = 0
+        yaw = -pi/2
+        goal_orientation = (np.sqrt((ee_rpy_x[-1] - roll)**2 + (ee_rpy_y[-1]-pitch)**2 + (ee_rpy_z[-1] - yaw)**2))
+        
         # trajectory cost (difference between the demonstrated trajectory and executed trajectory)
         # TODO: add margins
         dist_to_traj = np.sum([abs(joint_states[i] - self.traj_demonstrated_._ys[i]) for i in range(len(self.traj_demonstrated_._ys))], axis=0)
 
         # costs sum
-        costs = np.zeros(1+3)
+        costs = np.zeros(1+4)
         costs[1] = np.sum(self.stability_weight_*stability_cost)
         costs[2] = np.sum(self.goal_weight_*dist_to_goal)
-        costs[3] = np.sum(self.traj_weight_*dist_to_traj)
+        costs[3] = np.sum(self.goal_weight_*goal_orientation)
+        costs[4] = np.sum(self.traj_weight_*dist_to_traj/400)
 
         costs[0] = np.sum(costs[1:])
         
