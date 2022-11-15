@@ -45,8 +45,8 @@ class FunctionApproximatorWLS(FunctionApproximator):
         use_offset = meta_params["use_offset"]
         regularization = meta_params["regularization"]
 
-        n_samples = targets.size
-
+        # n_samples = targets.size
+        n_samples = targets.shape[0]
         inputs = inputs.reshape(n_samples, -1)
 
         # Make the design matrix
@@ -79,6 +79,8 @@ class FunctionApproximatorWLS(FunctionApproximator):
         # In python<=3.4, it is not a one-liner
         to_invert = np.dot(np.dot(X.T, W), X) + Gamma
         beta = np.dot(np.dot(np.dot(np.linalg.inv(to_invert), X.T), W), targets)
+
+        # beta = np.transpose(np.linalg.lstsq(X, targets)[0])
 
         if use_offset:
             model_params = {"slope": beta[:-1], "offset": beta[-1]}
