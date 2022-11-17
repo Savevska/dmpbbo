@@ -135,9 +135,9 @@ class CartDmp(DynamicalSystem, Parameterizable):
         self.beta = self.alpha / 4
         self.alpha_x = 2.0
 
-        self.c = np.exp(-self.alpha_x * np.linspace(0, 1, self.num_weights))
-        self.sigma = np.square((np.diff(self.c)*0.75))
-        self.sigma = np.append(self.sigma, self.sigma[-1])
+        self.centers_rot = np.exp(-self.alpha_x * np.linspace(0, 1, self.num_weights))
+        self.widths_rot = np.square((np.diff(self.centers_rot)*0.75))
+        self.widths_rot = np.append(self.widths_rot, self.widths_rot[-1])
     
     
     def __encode_quaternion_dmp(self, orienation_samples, n_bfs, reallast=False):
@@ -195,7 +195,7 @@ class CartDmp(DynamicalSystem, Parameterizable):
                 + self.alpha * self.tau * omega[i, :] \
                 - self.alpha * self.beta * 2 * np.log(q[-1] * q[i].conj()).imag
 
-            psi = np.exp(np.divide(-0.5 * np.square(x[i] - self.c), self.sigma))
+            psi = np.exp(np.divide(-0.5 * np.square(x[i] - self.centers_rot), self.widths_rot))
             A[i, :] = x[i] * np.divide(psi, np.sum(psi))
 
         # Do linear regression in the least square sense
@@ -207,7 +207,7 @@ class CartDmp(DynamicalSystem, Parameterizable):
         
         self.weights_rot = np.linalg.lstsq(A, ft)[0].T
         self.rot_trained = True
-        # print(self.weights_rot)
+
     # def decode(self):
     #     pos_traj, t = super(CartDmp, self).decode()
     #     rot_traj, _ = self.__decode_quaterion_dmp()
@@ -216,12 +216,13 @@ class CartDmp(DynamicalSystem, Parameterizable):
     def __decode_quaterion_dmp(self, ts):
 
         # Initial states
-        # y = self.q0
-        y = np.quaternion(1, 0, 0, 0)
+        y = self.q0
+        # y = np.quaternion(1, 0, 0, 0)
         z = np.quaternion(0, 0, 0, 0)
         # x, _ = self._phase_system_rot.integrate_start()
         x = 1
-        dt = float(np.mean(np.diff(ts)))
+        # dt = float(np.mean(np.diff(ts)))
+        dt=1/120
         # Set a limit for the phase
         self.x_min = np.exp(-self.alpha_x)
 
@@ -230,7 +231,8 @@ class CartDmp(DynamicalSystem, Parameterizable):
         t = [0.0]
 
         # Decode loop
-        while x > self.x_min:
+        # while x > self.x_min:
+        for i in range(len(ts)-1):
             [x, y, z] = self.integrate_step_quaternion(x, y, z, dt)
 
             traj.append(tuple(quaternion.as_float_array(y)))
@@ -263,8 +265,8 @@ class CartDmp(DynamicalSystem, Parameterizable):
         # psi = exp(-(x - c)^2 / (2 * sigma))
         # psi = np.exp(- np.square(x-self.fa_rot._model_params["centers"]) /
                     #  (np.multiply(self.fa_rot._model_params["widths"], 2)))
-        psi = np.exp(- np.square(x-self.c) /
-                     (np.multiply(self.sigma, 2)))
+        psi = np.exp(- np.square(x-self.centers_rot) /
+                     (np.multiply(self.widths_rot, 2)))
         fx = np.empty((3), dtype=np.float)
         for i in range(3):
             # Forcing function
@@ -340,16 +342,14 @@ class CartDmp(DynamicalSystem, Parameterizable):
         y_init = trajectory.ys[0, :3]
         y_attr = trajectory.ys[-1, :3]
 
-        # Variables from the rotational part of the trajectory
-        q_init = trajectory.ys[0, 3:]
-        q_attr = trajectory.ys[-1, 3:]
-
         trajectory_pos = Trajectory(trajectory.ts, trajectory.ys[:, :3], trajectory.yds[:, :3], trajectory.ydds[:, :3])
 
         dmp_pos = cls(tau, y_init, y_attr, function_approximators, 25, **kwargs)
         # print("Training DMP from trajectory... \n")
         dmp_pos.train(trajectory_pos, **kwargs)
         dmp_pos.__encode_quaternion_dmp(trajectory.ys[:, 3:], 25)
+
+        # Combine the parameters from the positional and rotational part
 
         return dmp_pos
 
@@ -855,7 +855,7 @@ class CartDmp(DynamicalSystem, Parameterizable):
         plot_tau = kwargs.get("plot_tau", True)
         has_fa_output = len(forcing_terms) > 0 or len(fa_outputs) > 0
 
-        axs = kwargs.get("axs") or Dmp.get_dmp_axes(has_fa_output)
+        axs = kwargs.get("axs") or CartDmp.get_dmp_axes(has_fa_output)
 
         d = self.dim_dmp()  # noqa Abbreviation for convenience
         systems = [

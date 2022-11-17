@@ -20,7 +20,7 @@ import numpy as np
 import quaternion
 from matplotlib import pyplot as plt
 import sys
-sys.path.append("/Users/kristina/WORK/dmpbbo/")
+sys.path.append("/home/ksavevska/dmpbbo/")
 from dmpbbo.dmps.CartDmp import CartDmp
 from dmpbbo.dmps.Trajectory import Trajectory
 from dmpbbo.functionapproximators.FunctionApproximatorRBFN import FunctionApproximatorRBFN
@@ -50,6 +50,14 @@ def main():
     for dmp_type in dmp_types:
         function_apps = [FunctionApproximatorRBFN(20, 0.75) for _ in range(n_dims)]
         dmp = CartDmp.from_traj(trajectory=traj, function_approximators=function_apps, dmp_type=dmp_type)
+        dmp.set_selected_param_names(["weights"])
+
+        print(dmp.get_param_vector().shape)
+        print(dmp._function_approximators[0].get_param_vector().shape)
+        print(dmp.weights_rot.shape)
+        print(dmp.widths_rot.shape)
+        print(dmp.centers_rot.shape)
+
         # dmp = CartDmp(tau, y_init, y_attr, function_apps, 20)
         print(dmp_type)
         # print(dmp._function_approximators[0]._model_params)
