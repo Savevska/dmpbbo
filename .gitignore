@@ -11,3 +11,4 @@ include/
 lib/
 license/
 .vscode
+*.DS_Store

@@ -43,7 +43,7 @@ class CartDmp(DynamicalSystem, Parameterizable):
 
     """
 
-    def __init__(self, tau, y_init, y_attr, function_approximators, n_bfs, **kwargs):
+    def __init__(self, tau, y_init, y_attr, function_approximators_pos, function_approximators_rot, n_bfs, **kwargs):
         """Initialize a DMP with function approximators and subsystems
 
         @param tau: Time constant
@@ -71,15 +71,15 @@ class CartDmp(DynamicalSystem, Parameterizable):
         super().__init__(1, tau, y_init, dim_dmp)
 
         self._y_attr = y_attr
-        self._function_approximators = function_approximators
+        self._function_approximators = function_approximators_pos
+        self._function_approximators_rot = function_approximators_rot
         self.num_weights = n_bfs
         transformation_system = kwargs.get("transformation_system", None)
         if transformation_system:
             self._spring_system = transformation_system
         else:
-            # alpha = kwargs.get("alpha_spring_damper", 20.0)
-            alpha = kwargs.get("alpha_spring_damper", np.sqrt(48.0))
-
+            alpha = kwargs.get("alpha_spring_damper", 20.0)
+            # alpha = kwargs.get("alpha_spring_damper", np.sqrt(48.0))
             self._spring_system = SpringDamperSystem(tau, y_init, y_attr, alpha)
 
         # Get sensible defaults for subsystems
@@ -87,10 +87,8 @@ class CartDmp(DynamicalSystem, Parameterizable):
         if dmp_type == "IJSPEERT_2002_MOVEMENT":
             goal_system_default = None
             gating_system_default = ExponentialSystem(tau, 1, 0, 4)
-            # phase_system_default = ExponentialSystem(tau, 1, 0, 4)
-            # gating_system_default = ExponentialSystem(tau, 1, 0, 2)
-            phase_system_default = ExponentialSystem(tau, 1, 0, 2)
-
+            phase_system_default = ExponentialSystem(tau, 1, 0, 4)
+            gating_system_default = ExponentialSystem(tau, 1, 0, 2)
             phase_system_rot_default = ExponentialSystem(tau, 1, 0, 2)
 
 
@@ -135,92 +133,87 @@ class CartDmp(DynamicalSystem, Parameterizable):
         self.beta = self.alpha / 4
         self.alpha_x = 2.0
 
-        self.centers_rot = np.exp(-self.alpha_x * np.linspace(0, 1, self.num_weights))
-        self.widths_rot = np.square((np.diff(self.centers_rot)*0.75))
-        self.widths_rot = np.append(self.widths_rot, self.widths_rot[-1])
+        # self.centers_rot = np.exp(-self.alpha_x * np.linspace(0, 1, self.num_weights))
+        # self.widths_rot = np.square((np.diff(self.centers_rot)*0.75))
+        # self.widths_rot = np.append(self.widths_rot, self.widths_rot[-1])
     
     
-    def __encode_quaternion_dmp(self, orienation_samples, n_bfs, reallast=False):
+    # def encode_quaternion_dmp(self, orienation_samples, n_bfs, reallast=False):
 
-        # If the user says the real part of the quaternion is on the last element
-        # of the vector we have to order it so it is compliant with np.quaternion
-        q = np.empty(len(orienation_samples), dtype=np.quaternion)
+    #     # If the user says the real part of the quaternion is on the last element
+    #     # of the vector we have to order it so it is compliant with np.quaternion
+    #     q = np.empty(len(orienation_samples), dtype=np.quaternion)
 
-        if reallast:
-            for i, quat in enumerate(orienation_samples):
-                q[i] = quaternion.from_float_array([quat[-1]] + quat[0:3])
-                # q[i] = [quat[-1]] + quat[0:3]
-        else:
-            q = quaternion.from_float_array(orienation_samples)
+    #     if reallast:
+    #         for i, quat in enumerate(orienation_samples):
+    #             q[i] = quaternion.from_float_array([quat[-1]] + quat[0:3])
+    #             # q[i] = [quat[-1]] + quat[0:3]
+    #     else:
+    #         q = quaternion.from_float_array(orienation_samples)
 
-        self.fix_quaternion_sign(quat_array = q)
-        # fix_quaternion_sign(q_dbg)
+    #     self.fix_quaternion_sign(quat_array = q)
+    #     # fix_quaternion_sign(q_dbg)
 
-        # Set the goal attribute
-        self.q0 = q[0]
-        self.q_goal = q[-1]
+    #     # Set the goal attribute
+    #     self.q0 = q[0]
+    #     self.q_goal = q[-1]
 
-        # Calculate a quaternion derivative which is needed to estimate the
-        # rotation velocity
-        dq = np.zeros(((np.max(q.shape), 4)), dtype=np.float32)
-        for i in range(4):
-            dq[:, i] = np.divide(
-                np.gradient(quaternion.as_float_array(q)[:, i]),
-                np.gradient(self._ts_train))
+    #     # Calculate a quaternion derivative which is needed to estimate the
+    #     # rotation velocity
+    #     dq = np.zeros(((np.max(q.shape), 4)), dtype=np.float32)
+    #     for i in range(4):
+    #         dq[:, i] = np.divide(
+    #             np.gradient(quaternion.as_float_array(q)[:, i]),
+    #             np.gradient(self._ts_train))
 
-        dq = quaternion.from_float_array(dq)
+    #     dq = quaternion.from_float_array(dq)
 
-        omega = np.empty((0, 3), dtype=np.float32)
-        for i in range(len(self._ts_train)):
-            omega = np.append(
-                omega,
-                [2 * (dq[i] * q[i].conj()).imag],
-                axis=0)
+    #     omega = np.empty((0, 3), dtype=np.float32)
+    #     for i in range(len(self._ts_train)):
+    #         omega = np.append(
+    #             omega,
+    #             [2 * (dq[i] * q[i].conj()).imag],
+    #             axis=0)
 
-        # Calculate the rotation acceleration
-        domega = np.empty(omega.shape, dtype=np.float32)
-        for i in range(3):
-            domega[:, i] = np.divide(np.gradient(omega[:, i]),
-                                     np.gradient(self._ts_train))
+    #     # Calculate the rotation acceleration
+    #     domega = np.empty(omega.shape, dtype=np.float32)
+    #     for i in range(3):
+    #         domega[:, i] = np.divide(np.gradient(omega[:, i]),
+    #                                  np.gradient(self._ts_train))
 
-        # Prepare empty matrices
-        ft = np.zeros((len(self._ts_train), 3), dtype=np.float32)
-        A = np.zeros((len(self._ts_train), self.num_weights), dtype=np.float32)
-        x = np.exp(-self.alpha_x * self._ts_train / self.tau)
-        # x, inputs_d = self._phase_system_rot.analytical_solution(self._ts_train)
+    #     # Prepare empty matrices
+    #     ft = np.zeros((len(self._ts_train), 3), dtype=np.float32)
+    #     A = np.zeros((len(self._ts_train), self.num_weights), dtype=np.float32)
+    #     x = np.exp(-self.alpha_x * self._ts_train / self.tau)
+    #     # x, inputs_d = self._phase_system_rot.analytical_solution(self._ts_train)
 
-        # Estimate the forcing term
-        for i in range(len(self._ts_train)):
-            ft[i, :] = np.square(self.tau) * domega[i, :] \
-                + self.alpha * self.tau * omega[i, :] \
-                - self.alpha * self.beta * 2 * np.log(q[-1] * q[i].conj()).imag
+    #     # Estimate the forcing term
+    #     for i in range(len(self._ts_train)):
+    #         ft[i, :] = np.square(self.tau) * domega[i, :] \
+    #             + self.alpha * self.tau * omega[i, :] \
+    #             - self.alpha * self.beta * 2 * np.log(q[-1] * q[i].conj()).imag
 
-            psi = np.exp(np.divide(-0.5 * np.square(x[i] - self.centers_rot), self.widths_rot))
-            A[i, :] = x[i] * np.divide(psi, np.sum(psi))
+    #         psi = np.exp(np.divide(-0.5 * np.square(x[i] - self.centers_rot), self.widths_rot))
+    #         A[i, :] = x[i] * np.divide(psi, np.sum(psi))
 
-        # Do linear regression in the least square sense
-        # f_targets = ft
-        # self.fa_rot.set_selected_param_names(["weights"])
-        # self.fa_rot.train(x, f_targets)
-        # print(fa.get_param_vector())
-        # self.weights_rot = self.fa_rot.get_param_vector().reshape(n_bfs, 3) #
+    #     # Do linear regression in the least square sense
+    #     # f_targets = ft
+    #     # self.fa_rot.set_selected_param_names(["weights"])
+    #     # self.fa_rot.train(x, f_targets)
+    #     # print(fa.get_param_vector())
+    #     # self.weights_rot = self.fa_rot.get_param_vector().reshape(n_bfs, 3) #
         
-        self.weights_rot = np.linalg.lstsq(A, ft)[0].T
-        self.rot_trained = True
+    #     self.weights_rot = np.linalg.lstsq(A, ft)[0].T
+    #     self.rot_trained = True
 
-    # def decode(self):
-    #     pos_traj, t = super(CartDmp, self).decode()
-    #     rot_traj, _ = self.__decode_quaterion_dmp()
-    #     return pos_traj, np.asarray(rot_traj), t
-
-    def __decode_quaterion_dmp(self, ts):
+    def decode_quaterion_dmp(self, ts):
 
         # Initial states
-        y = self.q0
+        y = quaternion.from_float_array(self.q0)
         # y = np.quaternion(1, 0, 0, 0)
         z = np.quaternion(0, 0, 0, 0)
-        # x, _ = self._phase_system_rot.integrate_start()
-        x = 1
+        x, _ = self._phase_system_rot.integrate_start()
+        # x = 1
         # dt = float(np.mean(np.diff(ts)))
         dt=1/120
         # Set a limit for the phase
@@ -239,7 +232,7 @@ class CartDmp(DynamicalSystem, Parameterizable):
             t.append(t[-1] + dt)
 
         traj = np.asarray(traj)
-        traj = self.fix_quaternion_sign(traj)
+        # traj = self.fix_quaternion_sign(traj)
         return traj, t
     
     
@@ -258,29 +251,28 @@ class CartDmp(DynamicalSystem, Parameterizable):
         # The update of the phase variable
         # dx = (-a_x * x) / tau
         # x = x + dx * dt
-        dx = -self.alpha_x * x / self.tau
-        x = x + dx * dt
-        # x, dx = self._phase_system_rot.integrate_step_euler(dt, x)
+        # dx = -self.alpha_x * x / self.tau
+        # x = x + dx * dt
+        x, dx = self._phase_system_rot.integrate_step_euler(dt, x)
         # The weighted sum of the locally weighted regression models
         # psi = exp(-(x - c)^2 / (2 * sigma))
         # psi = np.exp(- np.square(x-self.fa_rot._model_params["centers"]) /
                     #  (np.multiply(self.fa_rot._model_params["widths"], 2)))
-        psi = np.exp(- np.square(x-self.centers_rot) /
-                     (np.multiply(self.widths_rot, 2)))
+        # psi = np.exp(- np.square(x-self.centers_rot) /
+                    #  (np.multiply(self.widths_rot, 2)))
         fx = np.empty((3), dtype=np.float)
         for i in range(3):
             # Forcing function
             # sum( (w(i) * x) * psi/sum(psi) )
-            fx[i] = np.sum(np.multiply(
-                (np.multiply(self.weights_rot[i], x)),
-                (np.divide(psi, sum(psi)))
-            ))
-        
-        # fx = self.fa_rot.predict(x)
+            # fx[i] = np.sum(np.multiply(
+                # (np.multiply(self.weights_rot[i], x)),
+                # (np.divide(psi, sum(psi)))
+            # ))
+            fx[i] = self._function_approximators_rot[i].predict(x)
 
         # Estimate the angular velocity
         dz = self.alpha * \
-            (self.beta * 2 * np.log(self.q_goal * y.conj()).imag - z.imag) +\
+            (self.beta * 2 * np.log(quaternion.from_float_array(self.q_goal) * y.conj()).imag - z.imag) +\
             fx
 
         # Temporal scaling
@@ -327,7 +319,7 @@ class CartDmp(DynamicalSystem, Parameterizable):
             return quat_array
         
     @classmethod
-    def from_traj(cls, trajectory, function_approximators, **kwargs):
+    def from_traj(cls, trajectory, function_approximators_pos, function_approximators_rot, **kwargs):
         """Initialize a DMP by training it from a trajectory.
 
         @param trajectory: the trajectory to train on
@@ -342,15 +334,10 @@ class CartDmp(DynamicalSystem, Parameterizable):
         y_init = trajectory.ys[0, :3]
         y_attr = trajectory.ys[-1, :3]
 
-        trajectory_pos = Trajectory(trajectory.ts, trajectory.ys[:, :3], trajectory.yds[:, :3], trajectory.ydds[:, :3])
-
-        dmp_pos = cls(tau, y_init, y_attr, function_approximators, 25, **kwargs)
+        dmp_pos = cls(tau, y_init, y_attr, function_approximators_pos, function_approximators_rot, 25, **kwargs)
         # print("Training DMP from trajectory... \n")
-        dmp_pos.train(trajectory_pos, **kwargs)
-        dmp_pos.__encode_quaternion_dmp(trajectory.ys[:, 3:], 25)
-
-        # Combine the parameters from the positional and rotational part
-
+        dmp_pos.train(trajectory, **kwargs)
+        # dmp_pos.encode_quaternion_dmp(trajectory.ys[:, 3:], 25)
         return dmp_pos
 
     def dim_dmp(self):
@@ -358,7 +345,8 @@ class CartDmp(DynamicalSystem, Parameterizable):
 
         @return: Dimensionality of the dmp (y-part)
         """
-        return self._dim_y
+        # return self._dim_y
+        return 3
 
     def integrate_start(self, y_init=None):
         """ Start integrating the DMP with a new initial state.
@@ -571,8 +559,8 @@ class CartDmp(DynamicalSystem, Parameterizable):
             # Compute y component from z
             xds[tt, SPRING_Y] = xs[tt, SPRING_Z] / self._tau
         
-        if self.rot_trained:
-            q_traj, _ = self.__decode_quaterion_dmp(ts)
+        if self._function_approximators_rot[0].is_trained():
+            q_traj, _ = self.decode_quaterion_dmp(ts)
         else:
             q_traj = None
 
@@ -583,28 +571,31 @@ class CartDmp(DynamicalSystem, Parameterizable):
 
         @param trajectory: The trajectory with which to train the DMP.
         """
-
+        trajectory_pos = Trajectory(trajectory.ts, trajectory.ys[:, :3], trajectory.yds[:, :3], trajectory.ydds[:, :3])
         # Set tau, initial_state and attractor_state from the trajectory
         self.tau = trajectory.ts[-1]
-        self.y_init = trajectory.ys[0, :]
-        self.y_attr = trajectory.ys[-1, :]
+        self._ts_train = trajectory.ts
+        self.y_init = trajectory_pos.ys[0, :]
+        self.y_attr = trajectory_pos.ys[-1, :]
 
         # This needs to be computed for (optional) scaling of the forcing term.
         # Needs to be done BEFORE _compute_targets
-        self._scaling_amplitudes = trajectory.get_range_per_dim()
-        # print("  Scaling amplitudes... ")
-        # print("  ", self._scaling_amplitudes)
-        # print("\n")
+        self._scaling_amplitudes = trajectory_pos.get_range_per_dim()
 
         # Do not train function approximators if there are none
         if self._function_approximators is not None:
             # print("  Computing targets... \n")
-            fa_input_phase, f_target = self._compute_targets(trajectory)
-
+            fa_input_phase, f_target = self._compute_targets(trajectory_pos)
             for dd in range(self.dim_dmp()):
                 fa_target = f_target[:, dd]
                 self._function_approximators[dd].train(fa_input_phase, fa_target, **kwargs)
-
+                # Do not train function approximators if there are none
+        if self._function_approximators_rot is not None:
+            # print("  Computing targets... \n")
+            fa_input_phase_rot, f_target_rot = self._compute_targets_rot(trajectory)
+            for dd in range(3):
+                fa_target_rot = f_target_rot[:, dd]
+                self._function_approximators_rot[dd].train(fa_input_phase_rot, fa_target_rot, **kwargs)
         # Save the times steps on which the Dmp was trained.
         # This is just a convenience function to be able to call
         # analytical_solution without the "ts" argument.
@@ -612,7 +603,65 @@ class CartDmp(DynamicalSystem, Parameterizable):
             self._trajectory_train = trajectory
 
         # Always stored for backwards compatibility.
-        self._ts_train = trajectory.ts
+    
+    def _compute_targets_rot(self, trajectory, reallast=False):
+        n_time_steps = trajectory.ts.size
+        
+        fa_inputs, _ = self._phase_system_rot.analytical_solution(trajectory.ts)
+
+        orientation_samples = trajectory.ys[:, 3:]
+        q = np.empty(len(orientation_samples), dtype=np.quaternion)
+
+        if reallast:
+            for i, quat in enumerate(orientation_samples):
+                q[i] = quaternion.from_float_array([quat[-1]] + quat[0:3])
+                # q[i] = [quat[-1]] + quat[0:3]
+        else:
+            q = quaternion.from_float_array(orientation_samples)
+
+        self.fix_quaternion_sign(quat_array = q)
+        # fix_quaternion_sign(q_dbg)
+
+        # Set the goal attribute
+        self.q0 = quaternion.as_float_array(q[0])
+        self.q_goal = quaternion.as_float_array(q[-1])
+
+        # Calculate a quaternion derivative which is needed to estimate the
+        # rotation velocity
+        dq = np.zeros(((np.max(q.shape), 4)), dtype=np.float32)
+        for i in range(4):
+            dq[:, i] = np.divide(
+                np.gradient(quaternion.as_float_array(q)[:, i]),
+                np.gradient(self._ts_train))
+
+        dq = quaternion.from_float_array(dq)
+
+        omega = np.empty((0, 3), dtype=np.float32)
+        for i in range(len(self._ts_train)):
+            omega = np.append(
+                omega,
+                [2 * (dq[i] * q[i].conj()).imag],
+                axis=0)
+
+        # Calculate the rotation acceleration
+        domega = np.empty(omega.shape, dtype=np.float32)
+        for i in range(3):
+            domega[:, i] = np.divide(np.gradient(omega[:, i]),
+                                     np.gradient(self._ts_train))
+
+        # Prepare empty matrices
+        ft = np.zeros((len(self._ts_train), 3), dtype=np.float32)
+        # x, inputs_d = self._phase_system_rot.analytical_solution(self._ts_train)
+
+        # Estimate the forcing term
+        for i in range(len(self._ts_train)):
+            ft[i, :] = np.square(self.tau) * domega[i, :] \
+                + self.alpha * self.tau * omega[i, :] \
+                - self.alpha * self.beta * 2 * np.log(q[-1] * q[i].conj()).imag
+        fa_outputs = ft
+        
+        return fa_inputs, fa_outputs
+
 
     def _compute_targets(self, trajectory):
         """Given a trajectory, compute the inputs and targets for the function approximators.
@@ -624,7 +673,7 @@ class CartDmp(DynamicalSystem, Parameterizable):
         @return: fa_inputs_phase - The inputs for the function approximators (phase signal)
             fa_targets - The targets for the function approximators (forcing term)
         """
-
+        
         n_time_steps = trajectory.ts.size
         dim_data = trajectory.dim
         if self.dim_dmp() != dim_data:
@@ -779,11 +828,19 @@ class CartDmp(DynamicalSystem, Parameterizable):
             for fa in self._function_approximators:
                 fa.set_selected_param_names(names)
 
+        if self._function_approximators_rot:
+            for fa in self._function_approximators_rot:
+                fa.set_selected_param_names(names)
+
     def get_param_vector(self):
         """Get a vector containing the values of the selected parameters."""
         values = np.empty(0)
         if self._function_approximators is not None:
             for fa in self._function_approximators:
+                if fa.is_trained():
+                    values = np.append(values, fa.get_param_vector())
+        if self._function_approximators is not None:
+            for fa in self._function_approximators_rot:
                 if fa.is_trained():
                     values = np.append(values, fa.get_param_vector())
         if "goal" in self._selected_param_names:
@@ -803,6 +860,13 @@ class CartDmp(DynamicalSystem, Parameterizable):
                     cur_values = values[offset : offset + cur_size]
                     fa.set_param_vector(cur_values)
                     offset += cur_size
+        if self._function_approximators_rot is not None:
+            for fa in self._function_approximators_rot:
+                if fa.is_trained():
+                    cur_size = fa.get_param_vector_size()
+                    cur_values = values[offset : offset + cur_size]
+                    fa.set_param_vector(cur_values)
+                    offset += cur_size
         if "goal" in self._selected_param_names:
             self.y_attr = values[offset : offset + self.dim_dmp()]
 
@@ -814,6 +878,10 @@ class CartDmp(DynamicalSystem, Parameterizable):
         size = 0
         if self._function_approximators is not None:
             for fa in self._function_approximators:
+                if fa.is_trained():
+                    size += fa.get_param_vector_size()
+        if self._function_approximators_rot is not None:
+            for fa in self._function_approximators_rot:
                 if fa.is_trained():
                     size += fa.get_param_vector_size()
         if "goal" in self._selected_param_names:

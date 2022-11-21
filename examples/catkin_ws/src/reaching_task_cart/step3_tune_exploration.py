@@ -21,7 +21,8 @@ import argparse
 import os
 from pathlib import Path
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/Users/kristina/WORK/dmpbbo")
 
 from dmpbbo.dmps.Trajectory import Trajectory
 import numpy as np
@@ -52,7 +53,6 @@ def main():
     dmp = jc.loadjson(filename)
     ts = dmp.ts_train
     parameter_vector = dmp.get_param_vector()
-    parameter_vector_rot = dmp.weights_rot # ? is it the weights?
     
     n_samples = args.n
     # sigma = args.sigma
@@ -61,31 +61,27 @@ def main():
     sigma_pos = np.tile(1.0, 3).reshape((1,-1))
     sigma_rot = np.tile(1.0, 3).reshape((1,-1))
 
-    # sigma = np.column_stack((sigma_pos, sigma_rot))
-    sigma_pos = np.tile(sigma_pos, int(parameter_vector.size/sigma_pos.size))
-    covar_init = sigma_pos * sigma_pos * np.eye(parameter_vector.size)
+    sigma = np.column_stack((sigma_pos, sigma_rot))
+    sigma = np.tile(sigma, int(parameter_vector.size/sigma.size))
+    covar_init = sigma * sigma * np.eye(parameter_vector.size)
     distribution = DistributionGaussian(parameter_vector, covar_init)
 
-    distribution_rot = []
-    for i in range(parameter_vector_rot.shape[0]):
-        print(sigma_rot.shape)
-        sigma_rot = np.tile(sigma_rot, int(parameter_vector_rot.shape[1]/sigma_rot.shape[1]))
-        covar_init_rot = sigma_rot * sigma_rot * np.eye(parameter_vector_rot.shape[1])
-        dist_rot = DistributionGaussian(parameter_vector_rot[i,:], covar_init_rot)
-        # distribution_rot.append(dist_rot)
-        samples_rot = dist_rot.generate_samples(n_samples)
+    # distribution_rot = []
+    # for i in range(parameter_vector_rot.shape[0]):
+    #     print(sigma_rot.shape)
+    #     sigma_rot = np.tile(sigma_rot, int(parameter_vector_rot.shape[1]/sigma_rot.shape[1]))
+    #     covar_init_rot = sigma_rot * sigma_rot * np.eye(parameter_vector_rot.shape[1])
+    #     dist_rot = DistributionGaussian(parameter_vector_rot[i,:], covar_init_rot)
+    #     # distribution_rot.append(dist_rot)
+    #     samples_rot = dist_rot.generate_samples(n_samples)
 
     filename = Path(directory, f"distribution.json")
-    filename_rot = Path(directory, f"distribution_rot.json")
 
     print(f"Saving sampling distribution to: {filename}")
     os.makedirs(directory, exist_ok=True)
     jc.savejson(filename, distribution)
-    os.makedirs(directory, exist_ok=True)
-    jc.savejson(filename_rot, distribution_rot)
 
     samples = distribution.generate_samples(n_samples)
-
 
     if args.show or args.save:
         fig = plt.figure()
@@ -96,15 +92,16 @@ def main():
 
         ax2 = fig.add_subplot(122)
 
-        xs, xds, _, _ = dmp.analytical_solution()
+        xs, xds, _, _, q_traj = dmp.analytical_solution()
         traj_mean = dmp.states_as_trajectory(ts, xs, xds)
+        traj_mean = Trajectory(ts=traj_mean.ts, ys=np.column_stack((traj_mean.ys, q_traj)))
+
         lines, _ = traj_mean.plot([ax2])
         plt.setp(lines, linewidth=4, color="#007700")
 
     for i_sample in range(n_samples):
 
         dmp.set_param_vector(samples[i_sample, :])
-        dmp.weights_rot = samples_rot[i_sample, :]
         
         filename = Path(directory, f"{i_sample:02}_dmp")
         print(f"Saving sampled DMP to: {filename}.json")

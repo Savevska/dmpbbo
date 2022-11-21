@@ -20,7 +20,7 @@ import numpy as np
 import quaternion
 from matplotlib import pyplot as plt
 import sys
-sys.path.append("/home/ksavevska/dmpbbo/")
+sys.path.append("/Users/kristina/WORK/dmpbbo/")
 from dmpbbo.dmps.CartDmp import CartDmp
 from dmpbbo.dmps.Trajectory import Trajectory
 from dmpbbo.functionapproximators.FunctionApproximatorRBFN import FunctionApproximatorRBFN
@@ -48,15 +48,14 @@ def main():
     
     dmp_types = ["IJSPEERT_2002_MOVEMENT", "KULVICIUS_2012_JOINING", "COUNTDOWN_2013"]
     for dmp_type in dmp_types:
-        function_apps = [FunctionApproximatorRBFN(20, 0.75) for _ in range(n_dims)]
-        dmp = CartDmp.from_traj(trajectory=traj, function_approximators=function_apps, dmp_type=dmp_type)
+        function_apps = [FunctionApproximatorRBFN(25, 0.75) for _ in range(n_dims)]
+        function_apps_rot = [FunctionApproximatorRBFN(25, 0.75) for _ in range(n_dims)]
+
+        dmp = CartDmp.from_traj(trajectory=traj, function_approximators_pos=function_apps, function_approximators_rot=function_apps_rot, dmp_type=dmp_type)
         dmp.set_selected_param_names(["weights"])
 
         print(dmp.get_param_vector().shape)
         print(dmp._function_approximators[0].get_param_vector().shape)
-        print(dmp.weights_rot.shape)
-        print(dmp.widths_rot.shape)
-        print(dmp.centers_rot.shape)
 
         # dmp = CartDmp(tau, y_init, y_attr, function_apps, 20)
         print(dmp_type)
@@ -92,7 +91,7 @@ def main():
         q_steps[0, :] = y_init[3:]
         y = np.quaternion(y_init[3], y_init[4], y_init[5], y_init[6])
         z = np.quaternion(0,0,0,0)
-        x_phase = 1
+        x_phase, _ = dmp._phase_system_rot.integrate_start()
 
 
         x, xd = dmp.integrate_start()

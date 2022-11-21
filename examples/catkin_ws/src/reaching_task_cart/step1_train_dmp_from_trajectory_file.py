@@ -21,7 +21,8 @@ import argparse
 import os
 from pathlib import Path
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/Users/kristina/WORK/dmpbbo")
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -55,7 +56,7 @@ def main():
     t = np.loadtxt(args.trajectory_file)
 
     traj = Trajectory(ts=t[:,0], ys=t[:,1:])
-    filename_traj = Path(args.output_directory, "trajectory_cart.txt")
+    filename_traj = Path(args.output_directory, "trajectory.txt")
     traj.savetxt(filename_traj)
     # jc.savejson(traj,Path(args.output_directory,'trajectory.json'))
     n_dims = traj.dim
@@ -69,7 +70,9 @@ def main():
     for n_bfs in n_bfs_list:
 
         function_apps = [FunctionApproximatorRBFN(n_bfs, 0.7) for _ in range(3)]
-        dmp = CartDmp.from_traj(traj, function_apps, dmp_type="KULVICIUS_2012_JOINING", gating_system=SigmoidSystem(tau=traj.duration, x_init=1, max_rate=-1.0, inflection_ratio=0.9))
+        function_apps_rot = [FunctionApproximatorRBFN(n_bfs, 0.7) for _ in range(3)]
+
+        dmp = CartDmp.from_traj(traj, function_apps, function_apps_rot, dmp_type="KULVICIUS_2012_JOINING", gating_system=SigmoidSystem(tau=traj.duration, x_init=1, max_rate=-1.0, inflection_ratio=0.9))
 
         # These are the parameters that will be optimized.
         dmp.set_selected_param_names(["weights"])
@@ -80,7 +83,7 @@ def main():
         filename = Path(d, f"dmp_trained_{n_bfs}.json")
         print(f"Saving trained DMP to: {filename}")
         jc.savejson(filename, dmp)
-        # jc.savejson_for_cpp(Path(d, f"dmp_trained_{n_bfs}_for_cpp.json"), dmp)
+        jc.savejson_for_cpp(Path(d, f"dmp_trained_{n_bfs}_for_cpp.json"), dmp)
 
         ################################################
         # Analytical solution to compute difference
@@ -128,7 +131,7 @@ def main():
         q_steps[0, :] = traj.y_init[3:]
         y = np.quaternion(traj.y_init[3], traj.y_init[4], traj.y_init[5], traj.y_init[6])
         z = np.quaternion(0,0,0,0)
-        x_phase = 1
+        x_phase, _ = dmp._phase_system_rot.integrate_start()
 
         x, xd = dmp.integrate_start()
         xs_step[0, :] = x
