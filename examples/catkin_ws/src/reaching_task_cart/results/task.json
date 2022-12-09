@@ -1,1 +1,0 @@
-{"py/object": "TaskReach.TaskReach", "ee_pos_goal_": [0.65, -0.4, 0.0], "pos_margin_": 0, "ref_cop_": [0.0, 0.0], "traj_demonstrated_": null, "stability_weight_": 0.001, "goal_weight_": 1000, "traj_weight_": 0}

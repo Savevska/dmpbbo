@@ -20,8 +20,8 @@ import argparse
 import os
 from pathlib import Path
 import sys
-# sys.path.append("/home/ksavevska/dmpbbo")
-sys.path.append("/Users/kristina/WORK/dmpbbo")
+sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/Users/kristina/WORK/dmpbbo")
 import jsonpickle
 
 from TaskReach import TaskReach
@@ -41,8 +41,8 @@ def main():
     ee_pos_goal = [0.65, -0.4, 0.0] 
     pos_margin = 0
     ref_cop = [0.0, 0.0]
-    stability_weight = 0.001
-    goal_weight = 1000
+    stability_weight = 0.1
+    goal_weight = 1
     traj_weight = 0 
 
     traj_demonstrated = None #Trajectory.loadtxt(args.traj_filename, 0)

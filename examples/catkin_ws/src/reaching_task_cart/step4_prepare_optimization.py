@@ -16,8 +16,8 @@
 # along with DmpBbo.  If not, see <http://www.gnu.org/licenses/>.
 """ Script for preparing the optimization. """
 import sys
-# sys.path.append("/home/ksavevska/dmpbbo")
-sys.path.append("/Users/kristina/WORK/dmpbbo")
+sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/Users/kristina/WORK/dmpbbo")
 import argparse
 from pathlib import Path
 
@@ -39,13 +39,22 @@ def main():
     with open(filename, "r") as f:
         task = jsonpickle.decode(f.read())
 
-    filename = Path(args.directory, "distribution_initial.json")
-    with open(filename, "r") as f:
-        distribution_init = jsonpickle.decode(f.read())
+    filename_rarm = Path(args.directory, "distribution_initial_rarm.json")
+    with open(filename_rarm, "r") as f:
+        distribution_init_rarm = jsonpickle.decode(f.read())
+    
+    filename_larm = Path(args.directory, "distribution_initial_larm.json")
+    with open(filename_larm, "r") as f:
+        distribution_init_larm = jsonpickle.decode(f.read())
 
-    filename = Path(args.directory, "dmp_initial.json")
-    with open(filename, "r") as f:
-        dmp = jsonpickle.decode(f.read())
+    filename_rarm = Path(args.directory, "dmp_rarm_initial.json")
+    with open(filename_rarm, "r") as f:
+        dmp_rarm = jsonpickle.decode(f.read())
+
+    filename_larm = Path(args.directory, "dmp_larm_initial.json")
+    with open(filename_larm, "r") as f:
+        dmp_larm = jsonpickle.decode(f.read())
+
 
     n_samples_per_update = 30
 
@@ -69,10 +78,20 @@ def main():
         args.directory,
         task,
         task_solver,
-        distribution_init,
+        distribution_init_rarm,
         n_samples_per_update,
         updater,
-        dmp,
+        dmp_rarm,
+        args.traj,
+    )
+    prepare_optimization(
+        args.directory,
+        task,
+        task_solver,
+        distribution_init_larm,
+        n_samples_per_update,
+        updater,
+        dmp_larm,
         args.traj,
     )
 

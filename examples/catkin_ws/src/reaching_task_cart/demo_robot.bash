@@ -57,7 +57,7 @@ python3 step4_prepare_optimization.py ${D}
 
 ################################################################################
 # STEP 5: Run the optimization
-for i_update in $(seq -f "%05g" 0 149)
+for i_update in $(seq -f "%05g" 0 99)
 do
   
   # Run the sampled DMPs on the robot

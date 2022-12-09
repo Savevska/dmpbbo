@@ -21,8 +21,8 @@ import argparse
 import os
 from pathlib import Path
 import sys
-# sys.path.append("/home/ksavevska/dmpbbo")
-sys.path.append("/Users/kristina/WORK/dmpbbo")
+sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/Users/kristina/WORK/dmpbbo")
 
 from dmpbbo.dmps.Trajectory import Trajectory
 import numpy as np
@@ -36,7 +36,8 @@ def main():
     """ Main function that is called when executing the script. """
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("dmp", help="input dmp")
+    parser.add_argument("dmp_rarm", help="input dmp")
+    parser.add_argument("dmp_larm", help="input dmp")
     parser.add_argument("output_directory", help="directory to write results to")
     parser.add_argument("--sigma", help="sigma of covariance matrix", type=float, default=3.0)
     parser.add_argument("--n", help="number of samples", type=int, default=10)
@@ -48,24 +49,35 @@ def main():
     sigma_dir = "sigma_%1.3f" % args.sigma
     directory = Path(args.output_directory, sigma_dir)
 
-    filename = args.dmp
-    print(f"Loading DMP from: {filename}")
-    dmp = jc.loadjson(filename)
-    ts = dmp.ts_train
-    parameter_vector = dmp.get_param_vector()
+    filename_rarm = args.dmp
+    print(f"Loading DMP from: {filename_rarm}")
+    dmp_rarm = jc.loadjson(filename_rarm)
+    ts_rarm = dmp_rarm.ts_train
+    parameter_vector_rarm = dmp_rarm.get_param_vector()
+
+    filename_larm = args.dmp
+    print(f"Loading DMP from: {filename_larm}")
+    dmp_larm = jc.loadjson(filename_larm)
+    ts_larm = dmp_larm.ts_train
+    parameter_vector_larm = dmp_larm.get_param_vector()
     
     n_samples = args.n
     # sigma = args.sigma
 
     # Custom sigmas for position and orientation
-    sigma_pos = np.tile(1.0, 3).reshape((1,-1))
-    sigma_rot = np.tile(1.0, 3).reshape((1,-1))
+    sigma_pos_rarm = np.tile(1.0, 3).reshape((1,-1))
+    sigma_rot_rarm = np.tile(1.0, 3).reshape((1,-1))
+    sigma_rarm = np.column_stack((sigma_pos_rarm, sigma_rot_rarm))
+    sigma_rarm = np.tile(sigma_rarm, int(parameter_vector_rarm.size/sigma_rarm.size))
+    covar_init_rarm = sigma_rarm * sigma_rarm * np.eye(parameter_vector_rarm.size)
+    distribution_rarm = DistributionGaussian(parameter_vector_rarm, covar_init_rarm)
 
-    sigma = np.column_stack((sigma_pos, sigma_rot))
-    sigma = np.tile(sigma, int(parameter_vector.size/sigma.size))
-    covar_init = sigma * sigma * np.eye(parameter_vector.size)
-    distribution = DistributionGaussian(parameter_vector, covar_init)
-
+    sigma_pos_larm = np.tile(1.0, 3).reshape((1,-1))
+    sigma_rot_larm = np.tile(1.0, 3).reshape((1,-1))
+    sigma_larm = np.column_stack((sigma_pos_larm, sigma_rot_larm))
+    sigma_larm = np.tile(sigma_larm, int(parameter_vector_larm.size/sigma_larm.size))
+    covar_init_larm = sigma_larm * sigma_larm * np.eye(parameter_vector_larm.size)
+    distribution_larm = DistributionGaussian(parameter_vector_larm, covar_init_larm)
     # distribution_rot = []
     # for i in range(parameter_vector_rot.shape[0]):
     #     print(sigma_rot.shape)
@@ -75,25 +87,31 @@ def main():
     #     # distribution_rot.append(dist_rot)
     #     samples_rot = dist_rot.generate_samples(n_samples)
 
-    filename = Path(directory, f"distribution.json")
+    filename_rarm = Path(directory, f"distribution_rarm.json")
+    filename_larm = Path(directory, f"distribution_larm.json")
 
-    print(f"Saving sampling distribution to: {filename}")
+    print(f"Saving sampling distribution to: {filename_rarm}")
     os.makedirs(directory, exist_ok=True)
-    jc.savejson(filename, distribution)
-
-    samples = distribution.generate_samples(n_samples)
-
+    jc.savejson(filename_rarm, distribution_rarm)
+    print(f"Saving sampling distribution to: {filename_larm}")
+    os.makedirs(directory, exist_ok=True)
+    jc.savejson(filename_larm, distribution_larm)
+    
+    samples_rarm = distribution_rarm.generate_samples(n_samples)
+    samples_larm = distribution_larm.generate_samples(n_samples)
+        
+    # NOT USED CURRENTLY (made only for the right arm but the parameters show and save are not used at the moment)
     if args.show or args.save:
         fig = plt.figure()
 
         ax1 = fig.add_subplot(121)  # noqa
-        distribution.plot(ax1)
-        ax1.plot(samples[:, 0], samples[:, 1], "o", color="#BBBBBB")
+        distribution_rarm.plot(ax1)
+        ax1.plot(samples_rarm[:, 0], samples_rarm[:, 1], "o", color="#BBBBBB")
 
         ax2 = fig.add_subplot(122)
 
-        xs, xds, _, _, q_traj = dmp.analytical_solution()
-        traj_mean = dmp.states_as_trajectory(ts, xs, xds)
+        xs, xds, _, _, q_traj = dmp_rarm.analytical_solution()
+        traj_mean = dmp_rarm.states_as_trajectory(ts_rarm, xs, xds)
         traj_mean = Trajectory(ts=traj_mean.ts, ys=np.column_stack((traj_mean.ys, q_traj)))
 
         lines, _ = traj_mean.plot([ax2])
@@ -101,16 +119,23 @@ def main():
 
     for i_sample in range(n_samples):
 
-        dmp.set_param_vector(samples[i_sample, :])
+        dmp_rarm.set_param_vector(samples_rarm[i_sample, :])
+        dmp_larm.set_param_vector(samples_larm[i_sample, :])
+
         
-        filename = Path(directory, f"{i_sample:02}_dmp")
-        print(f"Saving sampled DMP to: {filename}.json")
-        jc.savejson(str(filename) + ".json", dmp)
+        filename_rarm = Path(directory, f"{i_sample:02}_dmp_rarm")
+        print(f"Saving sampled DMP to: {filename_rarm}.json")
+        jc.savejson(str(filename_rarm) + ".json", dmp_rarm)
+
+        filename_larm = Path(directory, f"{i_sample:02}_dmp_larm")
+        print(f"Saving sampled DMP to: {filename_larm}.json")
+        jc.savejson(str(filename_larm) + ".json", dmp_larm)
         # jc.savejson_for_cpp(str(filename) + "_for_cpp.json", dmp)
 
+        # NOT USED CURRENTLY (made only for the right arm but the parameters show and save are not used at the moment)
         if args.show or args.save or args.traj:
-            xs, xds, forcing, fa_outputs, q_traj = dmp.analytical_solution()
-            traj_sample = dmp.states_as_trajectory(ts, xs, xds)
+            xs, xds, forcing, fa_outputs, q_traj = dmp_rarm.analytical_solution()
+            traj_sample = dmp_rarm.states_as_trajectory(ts_rarm, xs, xds)
             trajectory = Trajectory(ts=traj_sample.ts, ys=np.column_stack((traj_sample.ys, q_traj)))
 
             if args.traj:

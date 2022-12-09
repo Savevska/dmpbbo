@@ -23,6 +23,7 @@
 '''
 import numpy as np
 import sys
+
 sys.path.append("/home/ksavevska/dmpbbo")
 import argparse
 # from dmpbbo.dmps import Dmp
@@ -31,17 +32,20 @@ import dmpbbo.json_for_cpp as jc
 
 import rospy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-# from control_msgs.msg import JointTrajectoryControllerState
+from control_msgs.msg import JointTrajectoryControllerState
 from sensor_msgs.msg import JointState
+from rqt_joint_trajectory_controller import joint_limits_urdf
 
-# from geometry_msgs.msg import Point
+from geometry_msgs.msg import Pose
 # from nav_msgs.msg import Odometry
 from std_msgs.msg import Float32
 from visualization_msgs.msg import Marker
 import tf2_ros
 from tf.transformations import euler_from_quaternion
+import quaternion
+
 # import copy
-# import os
+import os
 
 
 # import time
@@ -49,9 +53,10 @@ from tf.transformations import euler_from_quaternion
 class DmpExecution:
   def __init__(self, args):
     
-    self.dmp_filename = args.dmp_filename
-    self.cost_vars_filename = args.cost_vars_filename
-
+    self.dmp_rarm_filename = args.dmp_rarm_filename
+    self.dmp_larm_filename = args.dmp_larm_filename
+    self.cost_vars_rarm_filename = args.cost_vars_rarm_filename
+    self.cost_vars_larm_filename = args.cost_vars_larm_filename  
 
     self.rate = rospy.Rate(120)
     # self.last_pub_time = time.time()
@@ -60,28 +65,34 @@ class DmpExecution:
     self.tfBuffer = tf2_ros.Buffer()
     self.listener = tf2_ros.TransformListener(self.tfBuffer)
 
-    print("Reading DMP <-   ", args.dmp_filename)
-    self.dmp = jc.loadjson(args.dmp_filename) # json parser to the dmp object
+    print("Reading right arm DMP <-   ", args.dmp_rarm_filename)
+    self.dmp_rarm = jc.loadjson(args.dmp_rarm_filename) # json parser to the dmp object
+    print("Reading left arm DMP <-   ", args.dmp_larm_filename)
+    self.dmp_larm = jc.loadjson(args.dmp_larm_filename) # json parser to the dmp object
 
-    print(self.dmp.tau)
-    print(self.dmp.dim_y)
+    print(self.dmp_rarm.tau)
+    print(self.dmp_rarm.dim_y)
 
     # same time vector
-    # self.ts = self.dmp.ts_train
+    self.ts = self.dmp_rarm.ts_train
     # longer time vector
-    tau_exec = 1.3 * self.dmp.tau
-    dt = 1/120 
-    n_time_steps = int(tau_exec / dt)
-    self.ts = np.linspace(0, tau_exec, n_time_steps, dtype=float)  
+    # tau_exec = 1.3 * self.dmp.tau
+    # dt = 1/120 
+    # n_time_steps = int(tau_exec / dt)
+    # self.ts = np.linspace(0, tau_exec, n_time_steps, dtype=float)  
 
-    msg = rospy.wait_for_message(topic="/joint_states", topic_type=JointState, timeout=1)
+    msg_rarm = rospy.wait_for_message(topic="/right_arm_controller/state", topic_type=JointTrajectoryControllerState, timeout=1)
+    # msg_larm = rospy.wait_for_message(topic="/left_arm_controller/state", topic_type=JointTrajectoryControllerState, timeout=1)
+
     
-    pos = np.delete(np.array(msg.position), [14, 15])
-    vel = np.delete(np.array(msg.position), [14, 15])
+    # pos = np.delete(np.array(msg.position), [14, 15])
+    # vel = np.delete(np.array(msg.position), [14, 15])
 
-    self.y_state = np.array([pos])
-    self.yd_state = np.array([vel])
-    self.ydd_state = np.zeros((1,self.dmp.dim_y))
+    self.y_state = np.array(msg_rarm.actual.positions)
+    self.yd_state = np.array(msg_rarm.actual.velocities)
+    # self.y_state = np.column_stack([msg_rarm.actual.positions, msg_larm.actual.positions])
+    # self.yd_state = np.column_stack([msg_rarm.actual.velocities, msg_larm.actual.velocities])
+    self.ydd_state = np.zeros((1, 14))
 
     self.ee_pos = np.array([[0.0, 0.0, 0.0]])
     self.ee_rpy = np.array([[0.0, 0.0, 0.0]])
@@ -102,19 +113,24 @@ class DmpExecution:
 
     # self.command_pub = rospy.Publisher("/whole_body_kinematic_controller/reference_ref", JointState, queue_size=120)
 
+    self.right_pose_pub = rospy.Publisher("/right_wrist_pose", Pose, queue_size=queue_size, tcp_nodelay=True)
+    self.left_pose_pub = rospy.Publisher("/left_wrist_pose", Pose, queue_size=queue_size, tcp_nodelay=True)
+
+
+
     # base_sub = rospy.Subscriber("/floating_base_pose_simulated", Odometry, self.base_callback, queue_size=queue_size, tcp_nodelay=True)
-    torzo_z_sub = rospy.Subscriber("/torzo_z", Float32, self.torzo_z_callback, queue_size=queue_size, tcp_nodelay=True)
+    torzo_z_sub = rospy.Subscriber("/torso_z", Float32, self.torso_z_callback, queue_size=queue_size, tcp_nodelay=True)
 
     zmp_sub = rospy.Subscriber("/cop", Marker, self.zmp_callback, queue_size=queue_size, tcp_nodelay=True)
 
-    # self.left_arm_sub = rospy.Subscriber("/left_arm_controller/state", JointTrajectoryControllerState, self.state_callback, queue_size=queue_size)
-    # self.right_arm_sub = rospy.Subscriber("/right_arm_controller/state", JointTrajectoryControllerState, self.state_callback, queue_size=queue_size)
+    self.left_arm_sub = rospy.Subscriber("/left_arm_controller/state", JointTrajectoryControllerState, self.state_callback, queue_size=queue_size)
+    self.right_arm_sub = rospy.Subscriber("/right_arm_controller/state", JointTrajectoryControllerState, self.state_callback, queue_size=queue_size)
     # self.head_sub = rospy.Subscriber("/head_controller/state", JointTrajectoryControllerState, self.state_callback, queue_size=queue_size)
     # self.torso_sub = rospy.Subscriber("/torso_controller/state", JointTrajectoryControllerState, self.state_callback, queue_size=queue_size)
     # self.left_leg_sub = rospy.Subscriber("/left_leg_controller/state", JointTrajectoryControllerState, self.state_callback, queue_size=queue_size)
     # self.right_leg_sub = rospy.Subscriber("/right_leg_controller/state", JointTrajectoryControllerState, self.state_callback, queue_size=queue_size)
 
-    self.state_sub = rospy.Subscriber("/joint_states", JointState, self.state_callback, queue_size=queue_size, tcp_nodelay=True)
+    # self.state_sub = rospy.Subscriber("/joint_states", JointState, self.state_callback, queue_size=queue_size, tcp_nodelay=True)
 
     self.left_arm_names =  ["arm_left_1_joint", "arm_left_2_joint", "arm_left_3_joint", "arm_left_4_joint", "arm_left_5_joint", "arm_left_6_joint", "arm_left_7_joint"]
     self.right_arm_names = ["arm_right_1_joint", "arm_right_2_joint", "arm_right_3_joint", "arm_right_4_joint", "arm_right_5_joint", "arm_right_6_joint", "arm_right_7_joint"]
@@ -133,7 +149,7 @@ class DmpExecution:
   def base_callback(self, msg):
     self.torso_z = msg.pose.pose.position.z
 
-  def torzo_z_callback(self, msg):
+  def torso_z_callback(self, msg):
     self.torso_z = msg.data
 
   def zmp_callback(self, msg):
@@ -141,11 +157,11 @@ class DmpExecution:
 
   def state_callback(self, msg):
     # JointState message
-    pos = np.delete(np.array(msg.position), [14, 15])
-    vel = np.delete(np.array(msg.velocity), [14, 15])
-    self.ydd_state = np.array((vel - self.yd_state)*120)
-    self.y_state[:] = pos#np.array([pos])
-    self.yd_state[:] = vel# np.array([vel])
+    # pos = np.delete(np.array(msg.position), [14, 15])
+    # vel = np.delete(np.array(msg.velocity), [14, 15])
+    # self.ydd_state = np.array((vel - self.yd_state)*120)
+    # self.y_state[:] = pos#np.array([pos])
+    # self.yd_state[:] = vel# np.array([vel])
 
     # JointTrajectoryControllerState message
     # if "arm_left" in msg.joint_names[0]:
@@ -153,9 +169,9 @@ class DmpExecution:
     #   self.yd_state[0][0:7] = np.array([msg.actual.velocities])
     #   self.ydd_state[0][0:7] = np.array([msg.actual.velocities]) + self.yd_state[0][0:7]
     # if "arm_right" in msg.joint_names[0]:
-    #   self.y_state[0][7:14] = np.array([msg.actual.positions])
-    #   self.yd_state[0][7:14] = np.array([msg.actual.velocities])
-    #   self.ydd_state[0][7:14] = -np.array([msg.actual.velocities]) + self.yd_state[0][7:14]
+    self.y_state = np.array([msg.actual.positions])
+    self.yd_state = np.array([msg.actual.velocities])
+    self.ydd_state = -np.array([msg.actual.velocities]) + self.yd_state
     # if "head" in msg.joint_names[0]:
     #   self.y_state[0][14:16] = np.array([msg.actual.positions])
     #   self.yd_state[0][14:16] = np.array([msg.actual.velocities])
@@ -172,7 +188,7 @@ class DmpExecution:
     #   self.y_state[0][28:30] = np.array([msg.actual.positions])
     #   self.yd_state[0][28:30] = np.array([msg.actual.velocities])
     #   self.ydd_state[0][28:30] = -np.array([msg.actual.velocities]) + self.yd_state[0][28:30]
-
+  
   def make_trj_to_point(self, names, positions, velocities, accelerations, freq):
       '''Make message for moving to a cetrian joint configuration'''
 
@@ -196,57 +212,37 @@ class DmpExecution:
 
       trj.points = [jtp]
 
-      return trj      
-
-  def integrateStep(self, dt, y_des, yd_des, ydd_des):
-
-    left_arm_pos =      y_des[0:7]
-    right_arm_pos =     y_des[7:14]
-    head_pos =          y_des[14:16]
-    left_leg_pos =      y_des[16:22]
-    right_leg_pos =     y_des[22:28]
-    torso_pos =         y_des[28:30]
+      return trj 
     
-    left_arm_vel =      yd_des[0:7]
-    right_arm_vel =     yd_des[7:14]
-    head_vel =          yd_des[14:16]
-    left_leg_vel =      yd_des[16:22]
-    right_leg_vel =     yd_des[22:28]
-    torso_vel =         yd_des[28:30]
+  def integrateStep(self, dt, pos_rarm, rot_rarm, pos_larm, rot_larm):
+    pose_rarm = Pose()
+    pose_rarm.position.x = pos_rarm[0]
+    pose_rarm.position.y = pos_rarm[1]
+    pose_rarm.position.z = pos_rarm[2]
 
-    left_arm_acc =      ydd_des[0:7]
-    right_arm_acc =     ydd_des[7:14]
-    head_acc =          ydd_des[14:16]
-    left_leg_acc =      ydd_des[16:22]
-    right_leg_acc =     ydd_des[22:28]
-    torso_acc =         ydd_des[28:30]
+    rot_rarm = quaternion.as_float_array(rot_rarm)
+    rot_rarm_norm = rot_rarm / np.linalg.norm(rot_rarm)
+    pose_rarm.orientation.w = rot_rarm_norm[0]
+    pose_rarm.orientation.x = rot_rarm_norm[1]
+    pose_rarm.orientation.y = rot_rarm_norm[2]
+    pose_rarm.orientation.z = rot_rarm_norm[3]    
 
-    left_arm_traj =      self.make_trj_to_point(self.left_arm_names, left_arm_pos, left_arm_vel, left_arm_acc, 1/dt)
-    right_arm_traj =     self.make_trj_to_point(self.right_arm_names, right_arm_pos, right_arm_vel, right_arm_acc, 1/dt)
-    head_traj =          self.make_trj_to_point(self.head_names, head_pos, head_vel, head_acc, 1/dt)
-    left_leg_traj =      self.make_trj_to_point(self.left_leg_names, left_leg_pos, left_leg_vel, left_leg_acc, 1/dt)
-    right_leg_traj =     self.make_trj_to_point(self.right_leg_names, right_leg_pos, right_leg_vel, right_leg_acc, 1/dt)
-    torso_traj =         self.make_trj_to_point(self.torso_names, torso_pos, torso_vel, torso_acc, 1/dt)
+    pose_larm = Pose()
+    pose_larm.position.x = pos_larm[0]
+    pose_larm.position.y = pos_larm[1]
+    pose_larm.position.z = pos_larm[2]
 
-    # self.rate.sleep()
-    self.left_arm_pub.publish(left_arm_traj)
-    self.right_arm_pub.publish(right_arm_traj)
-    self.head_pub.publish(head_traj)
-    self.left_leg_pub.publish(left_leg_traj)
-    self.right_leg_pub.publish(right_leg_traj)
-    self.torso_pub.publish(torso_traj)
-
-  # def integrateStep(self, dt, y_des, yd_des, ydd_des):
-  #   command_msg = JointState()
-  #   command_msg.name = self.names
-  #   command_msg.position = y_des
-  #   command_msg.velocity = yd_des
-  #   command_msg.effort = [0]*len(y_des)
-
-  #   # command.acceleration = ydd_des
-
-  #   self.command_pub.publish(command_msg)
-    # rospy.sleep(dt)
+    rot_larm = quaternion.as_float_array(rot_larm)
+    rot_larm_norm = rot_larm / np.linalg.norm(rot_larm)
+    pose_larm.orientation.w = rot_larm_norm[0]
+    pose_larm.orientation.x = rot_larm_norm[1]
+    pose_larm.orientation.y = rot_larm_norm[2]
+    pose_larm.orientation.z = rot_larm_norm[3]    
+    
+    self.right_pose_pub.publish(pose_rarm)
+    self.left_pose_pub.publish(pose_larm)
+    
+    self.rate.sleep()
 
   def failed(self):
     if self.torso_z < 0.5:
@@ -263,7 +259,8 @@ class DmpExecution:
         self.rate.sleep()
 
     self.ee_pos[0][:] = [self.trans.transform.translation.x, self.trans.transform.translation.y, self.trans.transform.translation.z]
-    self.ee_rpy[0][:] = euler_from_quaternion(self.trans.transform.rotation)
+    # print(self.trans.transform.rotation)
+    self.ee_rpy[0][:] = euler_from_quaternion([self.trans.transform.rotation.x, self.trans.transform.rotation.y, self.trans.transform.rotation.z, self.trans.transform.rotation.w], axes="rxyz")
 
     self.lf_pos[0][:] = [self.trans_left.transform.translation.x, self.trans_left.transform.translation.y, self.trans_left.transform.translation.z]
     
@@ -289,31 +286,50 @@ class DmpExecution:
 
     self.left_arm_pub.publish(left_arm_traj)
     self.right_arm_pub.publish(right_arm_traj)
-    self.head_pub.publish(head_traj)
-    self.left_leg_pub.publish(left_leg_traj)
-    self.right_leg_pub.publish(right_leg_traj)
-    self.torso_pub.publish(torso_traj)
+    # self.head_pub.publish(head_traj)
+    # self.left_leg_pub.publish(left_leg_traj)
+    # self.right_leg_pub.publish(right_leg_traj)
+    # self.torso_pub.publish(torso_traj)
     rospy.sleep(5)
+    if self.failed():
+      self.cost_vars[-1][:] = np.ones(len(self.cost_vars[-1][:])).tolist()
+      os.system("rosservice call /gazebo/reset_world && sleep 5")
   
   def run(self):
     self.cost_vars = []
-    x, xd = self.dmp.integrate_start()
+    rot_rarm_des = np.quaternion(self.dmp_rarm.q0[0], self.dmp_rarm.q0[1], self.dmp_rarm.q0[2], self.dmp_rarm.q0[3])
+    z_rarm = np.quaternion(0,0,0,0)
+    x_phase_rarm, _ = self.dmp_rarm._phase_system_rot.integrate_start()
+    x_rarm, xd_rarm = self.dmp_rarm.integrate_start()
+
+    rot_larm_des = np.quaternion(self.dmp_larm.q0[0], self.dmp_larm.q0[1], self.dmp_larm.q0[2], self.dmp_larm.q0[3])
+    z_larm = np.quaternion(0,0,0,0)
+    x_phase_larm, _ = self.dmp_larm._phase_system_rot.integrate_start()
+    x_larm, xd_larm = self.dmp_larm.integrate_start()
+    
     for i in range(len(self.ts)-1):
       if not self.failed():
         dt = self.ts[i+1] - self.ts[i]
-        y_des, yd_des, ydd_des = self.dmp.states_as_pos_vel_acc(x, xd)
-        self.integrateStep(dt, y_des, yd_des, ydd_des)
+        pos_rarm_des, vel_rarm_des, acc_rarm_des = self.dmp.states_as_pos_vel_acc(x_rarm, xd_rarm)
+        pos_larm_des, vel_larm_des, acc_larm_des = self.dmp.states_as_pos_vel_acc(x_larm, xd_larm)
+
+        self.integrateStep(dt, pos_rarm_des, rot_rarm_des, pos_larm_des, rot_larm_des)
               
         costs = self.get_state(dt)
         self.cost_vars.append(costs)
-        x, xd = self.dmp.integrate_step_euler(dt, x)
+        x_phase_rarm, rot_rarm_des, z_rarm = self.dmp_rarm.integrate_step_quaternion(x_phase_rarm, rot_rarm_des, z_rarm, dt)
+        x_phase_larm, rot_larm_des, z_larm = self.dmp_larm.integrate_step_quaternion(x_phase_larm, rot_larm_des, z_larm, dt)
+
+        x_rarm, xd_rarm = self.dmp_rarm.integrate_step_euler(dt, x_rarm)
+        x_larm, xd_larm = self.dmp_larm.integrate_step_euler(dt, x_larm)
+
       else:
         print("Robot failed!")
         costs_fail = np.ones((len(self.ts)-i, len(costs)))
         self.cost_vars = np.row_stack((np.array(self.cost_vars), costs_fail)).tolist()
-        break    
+        break
     self.reset_pose()
-    np.savetxt(fname=self.cost_vars_filename, X=np.array(self.cost_vars))
+    np.savetxt(fname=self.cost_vars_rarm_filename, X=np.array(self.cost_vars))
       
 
 
