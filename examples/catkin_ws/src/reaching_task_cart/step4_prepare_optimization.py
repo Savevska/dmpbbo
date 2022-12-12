@@ -16,8 +16,8 @@
 # along with DmpBbo.  If not, see <http://www.gnu.org/licenses/>.
 """ Script for preparing the optimization. """
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
-# sys.path.append("/Users/kristina/WORK/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/Users/kristina/WORK/dmpbbo")
 import argparse
 from pathlib import Path
 
@@ -32,6 +32,8 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("directory", help="directory to write results to")
+    parser.add_argument("directory_rarm", help="directory to write results to")
+    parser.add_argument("directory_larm", help="directory to write results to")
     parser.add_argument("--traj", action="store_true", help="integrate DMP and save trajectory")
     args = parser.parse_args()
 
@@ -75,7 +77,7 @@ def main():
 
     task_solver = None
     prepare_optimization(
-        args.directory,
+        args.directory_rarm,
         task,
         task_solver,
         distribution_init_rarm,
@@ -85,7 +87,7 @@ def main():
         args.traj,
     )
     prepare_optimization(
-        args.directory,
+        args.directory_larm,
         task,
         task_solver,
         distribution_init_larm,

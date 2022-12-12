@@ -330,13 +330,18 @@ class DmpExecution:
         break
     self.reset_pose()
     np.savetxt(fname=self.cost_vars_rarm_filename, X=np.array(self.cost_vars))
+    np.savetxt(fname=self.cost_vars_larm_filename, X=np.array(self.cost_vars))
+
       
 
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
-  parser.add_argument("dmp_filename", help="file to read dmp from")
-  parser.add_argument("cost_vars_filename", help="directory to write cost relevant data")
+  parser.add_argument("dmp_rarm_filename", help="file to read dmp from")
+  parser.add_argument("dmp_larm_filename", help="file to read dmp from")
+  parser.add_argument("cost_vars_rarm_filename", help="directory to write cost relevant data")
+  parser.add_argument("cost_vars_larm_filename", help="directory to write cost relevant data")
+
   args = parser.parse_args()
   rospy.init_node("execute_dmp", anonymous=True)
   dmpExecutor = DmpExecution(args)

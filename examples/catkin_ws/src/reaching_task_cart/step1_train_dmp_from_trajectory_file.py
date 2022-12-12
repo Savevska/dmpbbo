@@ -21,8 +21,8 @@ import argparse
 import os
 from pathlib import Path
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
-# sys.path.append("/Users/kristina/WORK/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/Users/kristina/WORK/dmpbbo")
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -81,11 +81,15 @@ def main():
     n_bfs_list = list(range(20, args.n + 1))
     for n_bfs in n_bfs_list:
 
-        function_apps = [FunctionApproximatorRBFN(n_bfs, 0.7) for _ in range(3)]
-        function_apps_rot = [FunctionApproximatorRBFN(n_bfs, 0.7) for _ in range(3)]
+        rarm_function_apps = [FunctionApproximatorRBFN(n_bfs, 0.7) for _ in range(3)]
+        rarm_function_apps_rot = [FunctionApproximatorRBFN(n_bfs, 0.7) for _ in range(3)]
 
-        dmp_rarm = CartDmp.from_traj(traj_rarm, function_apps, function_apps_rot, dmp_type="KULVICIUS_2012_JOINING", gating_system=SigmoidSystem(tau=traj_rarm.duration, x_init=1, max_rate=-1.0, inflection_ratio=0.9))
-        dmp_larm = CartDmp.from_traj(traj_larm, function_apps, function_apps_rot, dmp_type="KULVICIUS_2012_JOINING", gating_system=SigmoidSystem(tau=traj_larm.duration, x_init=1, max_rate=-1.0, inflection_ratio=0.9))
+        larm_function_apps = [FunctionApproximatorRBFN(n_bfs, 0.7) for _ in range(3)]
+        larm_function_apps_rot = [FunctionApproximatorRBFN(n_bfs, 0.7) for _ in range(3)]
+
+
+        dmp_rarm = CartDmp.from_traj(traj_rarm, rarm_function_apps, rarm_function_apps_rot, dmp_type="KULVICIUS_2012_JOINING", gating_system=SigmoidSystem(tau=traj_rarm.duration, x_init=1, max_rate=-1.0, inflection_ratio=0.9))
+        dmp_larm = CartDmp.from_traj(traj_larm, larm_function_apps, larm_function_apps_rot, dmp_type="KULVICIUS_2012_JOINING", gating_system=SigmoidSystem(tau=traj_larm.duration, x_init=1, max_rate=-1.0, inflection_ratio=0.9))
 
 
         # These are the parameters that will be optimized.
@@ -223,7 +227,7 @@ def main():
             plt.show()
 
         # NOT USED CURRENTLY
-        cart_traj_reproduced = Trajectory(ts=ts, ys=cart_traj_reproduced)
+        cart_traj_reproduced = Trajectory(ts=ts, ys=cart_traj_reproduced_rarm)
 
         if args.show or args.save:
             ################################################

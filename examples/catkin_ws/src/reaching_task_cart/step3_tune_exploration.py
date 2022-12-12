@@ -21,8 +21,8 @@ import argparse
 import os
 from pathlib import Path
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
-# sys.path.append("/Users/kristina/WORK/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/Users/kristina/WORK/dmpbbo")
 
 from dmpbbo.dmps.Trajectory import Trajectory
 import numpy as np
@@ -49,13 +49,13 @@ def main():
     sigma_dir = "sigma_%1.3f" % args.sigma
     directory = Path(args.output_directory, sigma_dir)
 
-    filename_rarm = args.dmp
+    filename_rarm = args.dmp_rarm
     print(f"Loading DMP from: {filename_rarm}")
     dmp_rarm = jc.loadjson(filename_rarm)
     ts_rarm = dmp_rarm.ts_train
     parameter_vector_rarm = dmp_rarm.get_param_vector()
 
-    filename_larm = args.dmp
+    filename_larm = args.dmp_larm
     print(f"Loading DMP from: {filename_larm}")
     dmp_larm = jc.loadjson(filename_larm)
     ts_larm = dmp_larm.ts_train

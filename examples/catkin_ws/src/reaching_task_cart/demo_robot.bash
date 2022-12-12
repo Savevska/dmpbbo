@@ -61,20 +61,24 @@ for i_update in $(seq -f "%05g" 0 99)
 do
   
   # Run the sampled DMPs on the robot
-  DU="${D}/update${i_update}"
+  DU_rarm="${D}/updates_rarm/update${i_update}"
+  DU_larm="${D}/updates_larm/update${i_update}"
+
   # Evaluation rollout
   # ../../bin/robotExecuteDmp ${DU}/eval_dmp_for_cpp.json ${DU}/eval_cost_vars.txt
-  python3 robotExecuteDmpReaching.py ${DU}/eval_dmp.json ${DU}/eval_cost_vars.txt
+  python3 robotExecuteDmpReaching.py ${DU_rarm}/eval_dmp.json ${DU_larm}/eval_dmp.json ${DU_rarm}/eval_cost_vars.txt ${DU_larm}/eval_cost_vars.txt
   # Samples rollouts
   for i in $(seq -f "%03g" 0 29)
   do
     # ../../bin/robotExecuteDmp ${DU}/${i}_dmp_for_cpp.json ${DU}/${i}_cost_vars.txt
-    python3 robotExecuteDmpReaching.py ${DU}/${i}_dmp.json ${DU}/${i}_cost_vars.txt
+    python3 robotExecuteDmpReaching.py ${DU_rarm}/${i}_dmp.json ${DU_larm}/${i}_dmp.json ${DU_rarm}/${i}_cost_vars.txt ${DU_larm}/${i}_cost_vars.txt
   done
   
   # Update the distribution (given the cost_vars above), and generate the
   # next batch of samples
-  python3 step5_one_optimization_update.py ${D} ${i_update}
+  python3 step5_one_optimization_update.py ${D}/updates_rarm ${i_update}
+  python3 step5_one_optimization_update.py ${D}/updates_larm ${i_update}
+
   
 done
   

@@ -20,8 +20,8 @@ import argparse
 import os
 from pathlib import Path
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
-# sys.path.append("/Users/kristina/WORK/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/Users/kristina/WORK/dmpbbo")
 import jsonpickle
 
 from TaskReach import TaskReach
