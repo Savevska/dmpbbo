@@ -1,0 +1,14 @@
+python3 step1_train_dmp_from_trajectory_file.py trajectories/trajectory_cart_rarm_optimal.txt trajectories/trajectory_cart_larm_optimal.txt ${D}/training --n 20
+
+cp ${D}/training/dmp_larm_trained_20.json ${D}/dmp_larm_initial.json
+cp ${D}/training/dmp_rarm_trained_20.json ${D}/dmp_rarm_initial.json
+
+python3 step2_define_task.py ${D} task.json trajectories/trajectory.txt 
+
+python3 step3_tune_exploration.py ${D}/dmp_rarm_initial.json ${D}/dmp_larm_initial.json ${D}/tune_exploration --save --n 30 --sigma 1.0
+
+
+cp ${D}/tune_exploration/sigma_1.000/distribution_rarm.json ${D}/distribution_initial_rarm.json 
+cp ${D}/tune_exploration/sigma_1.000/distribution_larm.json ${D}/distribution_initial_larm.json 
+
+python3 step4_prepare_optimization.py ${D} ${D}/updates_rarm ${D}/updates_larm 

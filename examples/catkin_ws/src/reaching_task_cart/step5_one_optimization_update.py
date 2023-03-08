@@ -37,7 +37,7 @@ def main():
     session = LearningSessionTask.from_dir(args.directory)
 
     update_step(session, args.update, args.traj)
-    os.system("rosservice call /gazebo/reset_world && sleep 5")
+    os.system("rosservice call /gazebo/reset_world && sleep 8")
     # os.system("sleep 5")
 
 if __name__ == "__main__":

@@ -21,8 +21,8 @@ import argparse
 import os
 from pathlib import Path
 import sys
-# sys.path.append("/home/ksavevska/dmpbbo")
-sys.path.append("/Users/kristina/WORK/dmpbbo")
+sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/Users/kristina/WORK/dmpbbo")
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -78,7 +78,7 @@ def main():
     mean_absolute_errors_rarm = []
     mean_absolute_errors_larm = []
 
-    n_bfs_list = list(range(20, args.n + 1))
+    n_bfs_list = list(range(args.n, args.n + 1))
     for n_bfs in n_bfs_list:
 
         rarm_function_apps = [FunctionApproximatorRBFN(n_bfs, 0.7) for _ in range(3)]
@@ -159,10 +159,16 @@ def main():
         # traj_reproduced = dmp_rarm.states_as_trajectory(ts, xs_step, xds_step)
 
        
-        # Integrate DMP (with same tau) 
         ##################### RIGHT ARM
-        n_time_steps = len(traj_rarm._ts)
-        ts = traj_rarm._ts
+        # Integrate DMP (with same tau) 
+        # n_time_steps = len(traj_rarm._ts)
+        # ts = traj_rarm._ts
+        # Integrate DMP (with 1.3*tau)
+        tau_exec = 1.3 * traj_rarm.duration
+        dt = 1/120 
+        n_time_steps = int(tau_exec / dt)
+        ts = np.zeros([n_time_steps, 1])
+
         xs_step = np.zeros([n_time_steps, dmp_rarm.dim_x])
         xds_step = np.zeros([n_time_steps, dmp_rarm.dim_x])
 
@@ -176,7 +182,8 @@ def main():
         xs_step[0, :] = x
         xds_step[0, :] = xd
         for tt in range(1, n_time_steps):
-            dt = ts[tt] - ts[tt-1]
+            ts[tt] = dt * tt
+            # dt = ts[tt] - ts[tt-1]
             xs_step[tt, :], xds_step[tt, :] = dmp_rarm.integrate_step(dt, xs_step[tt - 1, :])
             x_phase, q_step, z = dmp_rarm.integrate_step_quaternion(x_phase, y, z, dt)
             y = q_step
@@ -194,8 +201,14 @@ def main():
             plt.show()
         
         ##################### LEFT ARM
-        n_time_steps = len(traj_larm._ts)
-        ts = traj_larm._ts
+       # Integrate DMP (with same tau) 
+        # n_time_steps = len(traj_larm._ts)
+        # ts = traj_larm._ts
+        # Integrate DMP (with 1.3*tau)
+        tau_exec = 1.3 * traj_larm.duration
+        dt = 1/120 
+        n_time_steps = int(tau_exec / dt)
+        ts = np.zeros([n_time_steps, 1])
         xs_step = np.zeros([n_time_steps, dmp_larm.dim_x])
         xds_step = np.zeros([n_time_steps, dmp_larm.dim_x])
 
@@ -209,7 +222,8 @@ def main():
         xs_step[0, :] = x
         xds_step[0, :] = xd
         for tt in range(1, n_time_steps):
-            dt = ts[tt] - ts[tt-1]
+            ts[tt] = dt * tt
+            # dt = ts[tt] - ts[tt-1]
             xs_step[tt, :], xds_step[tt, :] = dmp_larm.integrate_step(dt, xs_step[tt - 1, :])
             x_phase, q_step, z = dmp_larm.integrate_step_quaternion(x_phase, y, z, dt)
             y = q_step

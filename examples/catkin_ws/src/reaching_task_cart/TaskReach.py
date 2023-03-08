@@ -5,12 +5,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from math import pi
 from matplotlib.gridspec import GridSpec
+import quaternion
 
 from dmpbbo.bbo_of_dmps.Task import Task
 
 class TaskReach(Task):
     
-    def __init__(self, ee_pos_goal, pos_margin, ref_cop, stability_weight, goal_weight, traj_weight, traj_demonstrated):
+    def __init__(self, ee_pos_goal, pos_margin, ref_cop, stability_weight, goal_weight, goal_orientation_weight, traj_weight, traj_demonstrated):
 
         self.ee_pos_goal_ = ee_pos_goal
         self.pos_margin_ = pos_margin
@@ -18,6 +19,7 @@ class TaskReach(Task):
         self.traj_demonstrated_ = traj_demonstrated
         self.stability_weight_ = stability_weight
         self.goal_weight_ = goal_weight
+        self.goal_orientation_weight_ = goal_orientation_weight
         self.traj_weight_ = traj_weight
     
     def costLabels(self):
@@ -40,9 +42,14 @@ class TaskReach(Task):
         ee_pos_y = cost_vars[:,-n_misc+3]
         ee_pos_z = cost_vars[:,-n_misc+4]
 
-        ee_rpy_x = cost_vars[:,-n_misc+5]
-        ee_rpy_y = cost_vars[:,-n_misc+6]
-        ee_rpy_z = cost_vars[:,-n_misc+7]
+        ee_rot_x = cost_vars[:,-n_misc+5]
+        ee_rot_y = cost_vars[:,-n_misc+6]
+        ee_rot_z = cost_vars[:,-n_misc+7]
+        ee_rot_w = cost_vars[:,-n_misc+8]
+
+        # ee_rpy_x = cost_vars[:,-n_misc+5]
+        # ee_rpy_y = cost_vars[:,-n_misc+6]
+        # ee_rpy_z = cost_vars[:,-n_misc+7]
         
         # self.ref_cop_[0] = cost_vars[0, -n_misc+5]
         # self.ref_cop_[1] = cost_vars[0, -n_misc+6]
@@ -85,19 +92,30 @@ class TaskReach(Task):
                 if min(abs(self.sp_x_1-cop_x[i]), abs(self.sp_x_2-cop_x[i]), abs(self.sp_y_1-cop_y[i]), abs(self.sp_y_2-cop_y[i])) > 0.0095:
                     stability_cost[i] = (min(x_size/2, (self.sp_y_2-self.sp_y_1)/2) / (min(abs(self.sp_x_1-cop_x[i]), abs(self.sp_x_2-cop_x[i]), abs(self.sp_y_1-cop_y[i]), abs(self.sp_y_2-cop_y[i]))) - 1)**2
                 else:
-                    stability_cost[i] = 100
+                    stability_cost[i] = 10000
             else:
-                stability_cost[i] = 100
+                stability_cost[i] = 10000
         stability_cost = np.array(stability_cost)
         # goal cost (euclidean distance from the goal ee position)
         # TODO: add margins
         # dist_to_goal = np.sqrt((ee_pos_x - self.ee_pos_goal_[0])**2 + (ee_pos_y-self.ee_pos_goal_[1])**2 + (ee_pos_z-self.ee_pos_goal_[2])**2)
-        dist_to_goal = (np.sqrt((ee_pos_x[-1] - self.ee_pos_goal_[0])**2 + (ee_pos_y[-1]-self.ee_pos_goal_[1])**2 + (ee_pos_z[-1]-self.ee_pos_goal_[2])**2))
+        if ee_pos_x[-1] != 100:
+            dist_to_goal = (np.sqrt((ee_pos_x[-1] - self.ee_pos_goal_[0])**2 + (ee_pos_y[-1]-self.ee_pos_goal_[1])**2 + (ee_pos_z[-1]-self.ee_pos_goal_[2])**2))
+        else:
+            dist_to_goal = 100    
         
-        roll = pi/2
-        pitch = 0
-        yaw = -pi/2
-        goal_orientation = (np.sqrt((ee_rpy_x[-1] - roll)**2 + (ee_rpy_y[-1]-pitch)**2 + (ee_rpy_z[-1] - yaw)**2))
+        if ee_rot_x[-1] != 100:
+            q_desired_goal = quaternion.from_float_array([0.5, 0.5, -0.5, -0.5])
+            q_goal = quaternion.from_float_array([ee_rot_w[-1], ee_rot_x[-1], ee_rot_y[-1], ee_rot_z[-1]])
+            q_diff = q_goal * q_desired_goal.inverse()
+            q_diff = quaternion.from_float_array(quaternion.as_float_array(q_diff) / np.linalg.norm(quaternion.as_float_array(q_diff)))
+            orientation_cost = np.sum(np.abs(quaternion.as_rotation_vector(q_diff)[:2]))
+        else: 
+            orientation_cost = 100
+        # roll = pi/2
+        # pitch = 0
+        # yaw = -pi/2
+        # goal_orientation = (np.sqrt((ee_rpy_x[-1] - roll)**2 + (ee_rpy_y[-1]-pitch)**2 + (ee_rpy_z[-1] - yaw)**2))
         
         # trajectory cost (difference between the demonstrated trajectory and executed trajectory)
         # TODO: add margins
@@ -105,9 +123,9 @@ class TaskReach(Task):
 
         # costs sum
         costs = np.zeros(1+3)
-        costs[1] = np.sum(self.stability_weight_*stability_cost)
+        costs[1] = self.stability_weight_* (np.sum(stability_cost)/len(stability_cost))
         costs[2] = np.sum(self.goal_weight_*dist_to_goal)
-        costs[3] = np.sum(self.goal_weight_*goal_orientation)
+        costs[3] = np.sum(self.goal_orientation_weight_*orientation_cost)
         # costs[4] = np.sum(self.traj_weight_*dist_to_traj/400)
 
         costs[0] = np.sum(costs[1:])

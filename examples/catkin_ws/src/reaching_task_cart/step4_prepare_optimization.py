@@ -16,13 +16,13 @@
 # along with DmpBbo.  If not, see <http://www.gnu.org/licenses/>.
 """ Script for preparing the optimization. """
 import sys
-# sys.path.append("/home/ksavevska/dmpbbo")
-sys.path.append("/Users/kristina/WORK/dmpbbo")
+sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/Users/kristina/WORK/dmpbbo")
 import argparse
 from pathlib import Path
 
 import jsonpickle
-
+from math import pi
 from dmpbbo.bbo.updaters import UpdaterCovarAdaptation, UpdaterCovarDecay, UpdaterMean
 from dmpbbo.bbo_of_dmps.step_by_step_optimization import prepare_optimization
 
@@ -60,7 +60,7 @@ def main():
 
     n_samples_per_update = 30
 
-    updater_name = "decay"
+    updater_name = "covar"
     if updater_name == "mean":
         updater = UpdaterMean(eliteness=10, weighting="PI-BB")
     elif updater_name == "decay":
@@ -69,10 +69,10 @@ def main():
         updater = UpdaterCovarAdaptation(
             eliteness=10,
             weighting="PI-BB",
-            max_level=1.0,
+            max_level=pi,
             min_level=0.01,
             diag_only=False,
-            learning_rate=0.3,
+            learning_rate=0.5,
         )
 
     task_solver = None

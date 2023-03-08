@@ -21,11 +21,12 @@ import argparse
 import os
 from pathlib import Path
 import sys
-# sys.path.append("/home/ksavevska/dmpbbo")
-sys.path.append("/Users/kristina/WORK/dmpbbo")
+sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/Users/kristina/WORK/dmpbbo")
 
 from dmpbbo.dmps.Trajectory import Trajectory
 import numpy as np
+from math import pi
 from matplotlib import pyplot as plt
 
 import dmpbbo.json_for_cpp as jc
@@ -65,15 +66,15 @@ def main():
     # sigma = args.sigma
 
     # Custom sigmas for position and orientation
-    sigma_pos_rarm = np.tile(1.0, 3).reshape((1,-1))
-    sigma_rot_rarm = np.tile(1.0, 3).reshape((1,-1))
+    sigma_pos_rarm = np.tile(0.5, 3).reshape((1,-1))
+    sigma_rot_rarm = np.tile(pi/2, 3).reshape((1,-1))
     sigma_rarm = np.column_stack((sigma_pos_rarm, sigma_rot_rarm))
     sigma_rarm = np.tile(sigma_rarm, int(parameter_vector_rarm.size/sigma_rarm.size))
     covar_init_rarm = sigma_rarm * sigma_rarm * np.eye(parameter_vector_rarm.size)
     distribution_rarm = DistributionGaussian(parameter_vector_rarm, covar_init_rarm)
 
-    sigma_pos_larm = np.tile(1.0, 3).reshape((1,-1))
-    sigma_rot_larm = np.tile(1.0, 3).reshape((1,-1))
+    sigma_pos_larm = np.tile(0.5, 3).reshape((1,-1))
+    sigma_rot_larm = np.tile(0.5, 3).reshape((1,-1))
     sigma_larm = np.column_stack((sigma_pos_larm, sigma_rot_larm))
     sigma_larm = np.tile(sigma_larm, int(parameter_vector_larm.size/sigma_larm.size))
     covar_init_larm = sigma_larm * sigma_larm * np.eye(parameter_vector_larm.size)
