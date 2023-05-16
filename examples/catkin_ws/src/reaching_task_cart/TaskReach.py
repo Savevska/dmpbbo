@@ -6,41 +6,42 @@ import matplotlib.pyplot as plt
 from math import pi
 from matplotlib.gridspec import GridSpec
 import quaternion
+from dtaidistance import dtw
+from tf.transformations import euler_from_quaternion
 
 from dmpbbo.bbo_of_dmps.Task import Task
 
 class TaskReach(Task):
     
-    def __init__(self, ee_pos_goal, pos_margin, ref_cop, stability_weight, goal_weight, goal_orientation_weight, traj_weight, traj_demonstrated):
+    def __init__(self, ee_pos_goal, pos_margin, ref_cop, stability_weight, goal_weight, goal_orientation_weight, acc_weight, traj_weight, traj_demonstrated):
 
         self.ee_pos_goal_ = ee_pos_goal
         self.pos_margin_ = pos_margin
-        self.ref_cop_ = [0.0, 0.0]
         self.traj_demonstrated_ = traj_demonstrated
         self.stability_weight_ = stability_weight
         self.goal_weight_ = goal_weight
         self.goal_orientation_weight_ = goal_orientation_weight
+        self.acc_weight_ = acc_weight
         self.traj_weight_ = traj_weight
     
-    def costLabels(self):
-        return ['stability', 'goal reached', 'trajectory follow']
+    # def costLabels(self):
+    #     return ['stability', 'goal reached', 'trajectory follow']
 
     def evaluate_rollout(self,cost_vars,sample):
-        # self.ref_cop_ = np.loadtxt("/home/ksavevska/catkin_ws/src/rgbd_motion_imitation/src/zmp_ref.txt")
-        # print("Reference CoP", self.ref_cop_)
-        self.ee_pos_goal_ = [0.65, -0.4, 0.0] 
-        n_dims = 30#self.traj_demonstrated_.dim_#n_dims = 13
-        n_misc = 14#self.traj_demonstrated_.dim_misc()#n_misc = 5
+
+        n_dims = 30
+        n_misc = 15
         n_time_steps = cost_vars.shape[0]
         
-        ts = cost_vars[:,0]
-        joint_states = cost_vars[:,1:n_dims+1]
+        acc = cost_vars[:, 27:30]
+        joint_states = cost_vars[:,:n_dims]
         cop_x = cost_vars[:,-n_misc]
         cop_y = cost_vars[:,-n_misc+1]
         
         ee_pos_x = cost_vars[:,-n_misc+2]
         ee_pos_y = cost_vars[:,-n_misc+3]
         ee_pos_z = cost_vars[:,-n_misc+4]
+        ee_states = np.column_stack((ee_pos_x, ee_pos_y, ee_pos_z))
 
         ee_rot_x = cost_vars[:,-n_misc+5]
         ee_rot_y = cost_vars[:,-n_misc+6]
@@ -50,87 +51,109 @@ class TaskReach(Task):
         # ee_rpy_x = cost_vars[:,-n_misc+5]
         # ee_rpy_y = cost_vars[:,-n_misc+6]
         # ee_rpy_z = cost_vars[:,-n_misc+7]
-        
-        # self.ref_cop_[0] = cost_vars[0, -n_misc+5]
-        # self.ref_cop_[1] = cost_vars[0, -n_misc+6]
 
-        # print("Reference CoP", self.ref_cop_)
+        # If the robot failed return cost = 10 for the overall cost and equal penalties for all terms.
+        if cop_x[-1] == 100:
+            costs = np.zeros(1+5)
+            costs[0] = 10
+            costs[1] = costs[0]/5
+            costs[2] = costs[0]/5
+            costs[3] = costs[0]/5
+            costs[4] = costs[0]/5
+            costs[5] = costs[0]/5
 
+            return costs
 
-        # stability cost 
-        # TODO: add margins
-        ########### 1
-        # fall_penalty = 1
-        # x_limit = 0.125016 # not sure if I should take the 
-        # y_limit = 0.149483
-        # steepness_x = fall_penalty/(x_limit**3)
-        # steepness_y = fall_penalty/(y_limit**3)
-        # dist_x = (steepness_x*np.abs(cop_x - self.ref_cop_[0]))**3
-        # dist_y = (steepness_y*np.abs(cop_y - self.ref_cop_[1]))**3
-        # dist_to_ref_cop = dist_x + dist_y
-        
-        ########### 2
-        # dist_to_ref_cop = np.sqrt((cop_x - self.ref_cop_[0])**2 + (cop_y-self.ref_cop_[1])**2)
-
-        ########### 3
-        x_size = 0.21
-        y_size = 0.13
-        self.sp_y_1 = cost_vars[0, -2] - y_size/2
-        self.sp_y_2 = cost_vars[0, -5] + y_size/2
-        self.sp_x_1 = max(cost_vars[0, -6] - x_size/2, cost_vars[0, -3] - x_size/2)
-        self.sp_x_2 = min(cost_vars[0, -6] + x_size/2, cost_vars[0, -3] + x_size/2)
-        
-        x_cost = abs(((2*cop_x - self.sp_x_1 - self.sp_x_2)/(self.sp_x_2 - self.sp_x_1))**3)
-        y_cost = abs(((2*cop_y - self.sp_y_1 - self.sp_y_2)/(self.sp_y_2 - self.sp_y_1))**3)
-        stability_cost = 0.6*x_cost + 0.4*y_cost
-
-        # dist_to_ref_cop = (1/len(cost_vars))*np.sqrt((cop_x - self.ref_cop_[0])**2 + (cop_y-self.ref_cop_[1])**2)
-
-        stability_cost = [0]*len(cop_x)
-        for i in range(len(cop_x)):
-            if cop_x[i] > self.sp_x_1 and cop_x[i] < self.sp_x_2 and cop_y[i] > self.sp_y_1 and cop_y[i] < self.sp_y_2:
-                if min(abs(self.sp_x_1-cop_x[i]), abs(self.sp_x_2-cop_x[i]), abs(self.sp_y_1-cop_y[i]), abs(self.sp_y_2-cop_y[i])) > 0.0095:
-                    stability_cost[i] = (min(x_size/2, (self.sp_y_2-self.sp_y_1)/2) / (min(abs(self.sp_x_1-cop_x[i]), abs(self.sp_x_2-cop_x[i]), abs(self.sp_y_1-cop_y[i]), abs(self.sp_y_2-cop_y[i]))) - 1)**2
-                else:
-                    stability_cost[i] = 10000
-            else:
-                stability_cost[i] = 10000
-        stability_cost = np.array(stability_cost)
-        # goal cost (euclidean distance from the goal ee position)
-        # TODO: add margins
-        # dist_to_goal = np.sqrt((ee_pos_x - self.ee_pos_goal_[0])**2 + (ee_pos_y-self.ee_pos_goal_[1])**2 + (ee_pos_z-self.ee_pos_goal_[2])**2)
-        if ee_pos_x[-1] != 100:
-            dist_to_goal = (np.sqrt((ee_pos_x[-1] - self.ee_pos_goal_[0])**2 + (ee_pos_y[-1]-self.ee_pos_goal_[1])**2 + (ee_pos_z[-1]-self.ee_pos_goal_[2])**2))
+        # Else, calculate the separate terms and multiply by their weights  
         else:
-            dist_to_goal = 100    
-        
-        if ee_rot_x[-1] != 100:
-            q_desired_goal = quaternion.from_float_array([0.5, 0.5, -0.5, -0.5])
-            q_goal = quaternion.from_float_array([ee_rot_w[-1], ee_rot_x[-1], ee_rot_y[-1], ee_rot_z[-1]])
-            q_diff = q_goal * q_desired_goal.inverse()
-            q_diff = quaternion.from_float_array(quaternion.as_float_array(q_diff) / np.linalg.norm(quaternion.as_float_array(q_diff)))
-            orientation_cost = np.sum(np.abs(quaternion.as_rotation_vector(q_diff)[:2]))
-        else: 
-            orientation_cost = 100
-        # roll = pi/2
-        # pitch = 0
-        # yaw = -pi/2
-        # goal_orientation = (np.sqrt((ee_rpy_x[-1] - roll)**2 + (ee_rpy_y[-1]-pitch)**2 + (ee_rpy_z[-1] - yaw)**2))
-        
-        # trajectory cost (difference between the demonstrated trajectory and executed trajectory)
-        # TODO: add margins
-        # dist_to_traj = np.sum([abs(joint_states[i] - self.traj_demonstrated_._ys[i]) for i in range(len(self.traj_demonstrated_._ys))], axis=0)
+            # stability cost 
+            ########### 1
+            # fall_penalty = 1
+            # x_limit = 0.125016 # not sure if I should take the 
+            # y_limit = 0.149483
+            # steepness_x = fall_penalty/(x_limit**3)
+            # steepness_y = fall_penalty/(y_limit**3)
+            # dist_x = (steepness_x*np.abs(cop_x - self.ref_cop_[0]))**3
+            # dist_y = (steepness_y*np.abs(cop_y - self.ref_cop_[1]))**3
+            # dist_to_ref_cop = dist_x + dist_y
+            
+            ########### 2
+            # dist_to_ref_cop = np.sqrt((cop_x - self.ref_cop_[0])**2 + (cop_y-self.ref_cop_[1])**2)
 
-        # costs sum
-        costs = np.zeros(1+3)
-        costs[1] = self.stability_weight_* (np.sum(stability_cost)/len(stability_cost))
-        costs[2] = np.sum(self.goal_weight_*dist_to_goal)
-        costs[3] = np.sum(self.goal_orientation_weight_*orientation_cost)
-        # costs[4] = np.sum(self.traj_weight_*dist_to_traj/400)
+            ########### 3
+            x_size = 0.21
+            y_size = 0.13
+            self.sp_y_1 = cost_vars[0, -2] - y_size/2
+            self.sp_y_2 = cost_vars[0, -5] + y_size/2
+            self.sp_x_1 = max(cost_vars[0, -6] - x_size/2, cost_vars[0, -3] - x_size/2)
+            self.sp_x_2 = min(cost_vars[0, -6] + x_size/2, cost_vars[0, -3] + x_size/2)
+            
+            # x_cost = abs(((2*cop_x - self.sp_x_1 - self.sp_x_2)/(self.sp_x_2 - self.sp_x_1))**3)
+            # y_cost = abs(((2*cop_y - self.sp_y_1 - self.sp_y_2)/(self.sp_y_2 - self.sp_y_1))**3)
+            # stability_cost = 0.6*x_cost + 0.4*y_cost
 
-        costs[0] = np.sum(costs[1:])
-        
-        return costs
+            # dist_to_ref_cop = (1/len(cost_vars))*np.sqrt((cop_x - self.ref_cop_[0])**2 + (cop_y-self.ref_cop_[1])**2)
+
+            stability_cost = [0]*len(cop_x)
+            for i in range(len(cop_x)):
+                if cop_x[i] > self.sp_x_1 and cop_x[i] < self.sp_x_2 and cop_y[i] > self.sp_y_1 and cop_y[i] < self.sp_y_2:
+                    if min(abs(self.sp_x_1-cop_x[i]), abs(self.sp_x_2-cop_x[i]), abs(self.sp_y_1-cop_y[i]), abs(self.sp_y_2-cop_y[i])) > 0.0095:
+                        stability_cost[i] = (min(x_size/2, (self.sp_y_2-self.sp_y_1)/2) / (min(abs(self.sp_x_1-cop_x[i]), abs(self.sp_x_2-cop_x[i]), abs(self.sp_y_1-cop_y[i]), abs(self.sp_y_2-cop_y[i]))) - 1)**2
+                    else:
+                        stability_cost[i] = 100
+                else:
+                    stability_cost[i] = 100
+            # Normalize the stability cost
+            stability_cost = np.array(stability_cost)/100
+            
+            # goal cost (euclidean distance from the goal ee position)
+            # dist_to_goal = np.sqrt((ee_pos_x - self.ee_pos_goal_[0])**2 + (ee_pos_y-self.ee_pos_goal_[1])**2 + (ee_pos_z-self.ee_pos_goal_[2])**2)
+            # if ee_pos_x[-1] != 100:
+            dist_to_goal = (np.sqrt((ee_pos_x[-1] - self.ee_pos_goal_[0])**2 + (ee_pos_y[-1]-self.ee_pos_goal_[1])**2 + (ee_pos_z[-1]-self.ee_pos_goal_[2])**2))
+            # else:
+                # dist_to_goal = 3    
+            
+            # if ee_rot_x[-1] != 100:
+            desired_goal_euler = euler_from_quaternion(quaternion=[0.5, -0.5, -0.5, 0.5], axes='rxyz')
+            goal_euler = euler_from_quaternion(quaternion=[ee_rot_x[-1], ee_rot_y[-1], ee_rot_z[-1], ee_rot_w[-1]], axes='rxyz')
+            orientation_cost = np.linalg.norm(np.array(goal_euler) - np.array(desired_goal_euler))
+            
+            # q_desired_goal = quaternion.from_float_array([0.5, 0.5, -0.5, -0.5])
+            # q_goal = quaternion.from_float_array([ee_rot_w[-1], ee_rot_x[-1], ee_rot_y[-1], ee_rot_z[-1]])
+            # q_diff = q_goal * q_desired_goal.inverse()
+            # q_diff = quaternion.from_float_array(quaternion.as_float_array(q_diff) / np.linalg.norm(quaternion.as_float_array(q_diff)))
+            # orientation_cost = np.sum(np.abs(quaternion.as_rotation_vector(q_diff)[:2]))
+            
+            acc_sums = np.array([np.sum(acc[:,a]**2)/len(acc[:,a]) for a in range(acc.shape[1])])
+            acc_cost = np.sum(acc_sums)/len(acc_sums)
+            # else: 
+                # orientation_cost = 5
+            # roll = pi/2
+            # pitch = 0
+            # yaw = -pi/2
+            
+            # goal_orientation = (np.sqrt((ee_rpy_x[-1] - roll)**2 + (ee_rpy_y[-1]-pitch)**2 + (ee_rpy_z[-1] - yaw)**2))
+            
+            # trajectory cost (difference between the demonstrated trajectory and executed trajectory)
+            # TODO: add margins
+            # dist_to_traj = np.sum([abs(ee_states[i] - self.traj_demonstrated_._ys[i, :3]) for i in range(len(self.traj_demonstrated_._ys))], axis=0)/len(self.traj_demonstrated_._ys)
+            # dist_to_traj = np.sum(dist_to_traj)/3
+            x_dist = dtw.distance(ee_states[:,0], self.traj_demonstrated_.ys[:, 0])
+            y_dist = dtw.distance(ee_states[:,1], self.traj_demonstrated_.ys[:, 1])
+            z_dist = dtw.distance(ee_states[:,2], self.traj_demonstrated_.ys[:, 2])
+            dist_to_traj = (x_dist + y_dist + z_dist)/3
+
+            # costs sum
+            costs = np.zeros(1+5)
+            costs[1] = self.stability_weight_* (np.sum(stability_cost)/len(stability_cost))
+            costs[2] = self.goal_weight_*dist_to_goal
+            costs[3] = self.goal_orientation_weight_*orientation_cost
+            costs[4] = self.acc_weight_*acc_cost
+            costs[5] = self.traj_weight_*dist_to_traj
+
+            costs[0] = np.sum(costs[1:])
+            
+            return costs
         
     def plot_rollout(self,cost_vars,ax):
         """Simple script to plot y of DMP trajectory"""

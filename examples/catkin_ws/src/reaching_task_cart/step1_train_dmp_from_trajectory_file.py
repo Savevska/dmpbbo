@@ -93,7 +93,7 @@ def main():
 
 
         # These are the parameters that will be optimized.
-        dmp_rarm.set_selected_param_names(["weights"])
+        dmp_rarm.set_selected_param_names(["weights", "goal"])
         dmp_larm.set_selected_param_names(["weights"])
 
         ################################################
@@ -161,13 +161,13 @@ def main():
        
         ##################### RIGHT ARM
         # Integrate DMP (with same tau) 
-        # n_time_steps = len(traj_rarm._ts)
-        # ts = traj_rarm._ts
+        n_time_steps = len(traj_rarm._ts)
+        ts = traj_rarm._ts
         # Integrate DMP (with 1.3*tau)
-        tau_exec = 1.3 * traj_rarm.duration
-        dt = 1/120 
-        n_time_steps = int(tau_exec / dt)
-        ts = np.zeros([n_time_steps, 1])
+        # tau_exec = 1.3 * traj_rarm.duration
+        # dt = 1/120 
+        # n_time_steps = int(tau_exec / dt)
+        # ts = np.zeros([n_time_steps, 1])
 
         xs_step = np.zeros([n_time_steps, dmp_rarm.dim_x])
         xds_step = np.zeros([n_time_steps, dmp_rarm.dim_x])
@@ -182,8 +182,8 @@ def main():
         xs_step[0, :] = x
         xds_step[0, :] = xd
         for tt in range(1, n_time_steps):
-            ts[tt] = dt * tt
-            # dt = ts[tt] - ts[tt-1]
+            # ts[tt] = dt * tt
+            dt = ts[tt] - ts[tt-1]
             xs_step[tt, :], xds_step[tt, :] = dmp_rarm.integrate_step(dt, xs_step[tt - 1, :])
             x_phase, q_step, z = dmp_rarm.integrate_step_quaternion(x_phase, y, z, dt)
             y = q_step
@@ -202,13 +202,14 @@ def main():
         
         ##################### LEFT ARM
        # Integrate DMP (with same tau) 
-        # n_time_steps = len(traj_larm._ts)
-        # ts = traj_larm._ts
+        n_time_steps = len(traj_larm._ts)
+        ts = traj_larm._ts
         # Integrate DMP (with 1.3*tau)
-        tau_exec = 1.3 * traj_larm.duration
-        dt = 1/120 
-        n_time_steps = int(tau_exec / dt)
-        ts = np.zeros([n_time_steps, 1])
+        # tau_exec = 1.3 * traj_larm.duration
+        # dt = 1/120 
+        # n_time_steps = int(tau_exec / dt)
+        # ts = np.zeros([n_time_steps, 1])
+        
         xs_step = np.zeros([n_time_steps, dmp_larm.dim_x])
         xds_step = np.zeros([n_time_steps, dmp_larm.dim_x])
 
@@ -222,8 +223,8 @@ def main():
         xs_step[0, :] = x
         xds_step[0, :] = xd
         for tt in range(1, n_time_steps):
-            ts[tt] = dt * tt
-            # dt = ts[tt] - ts[tt-1]
+            # ts[tt] = dt * tt
+            dt = ts[tt] - ts[tt-1]
             xs_step[tt, :], xds_step[tt, :] = dmp_larm.integrate_step(dt, xs_step[tt - 1, :])
             x_phase, q_step, z = dmp_larm.integrate_step_quaternion(x_phase, y, z, dt)
             y = q_step

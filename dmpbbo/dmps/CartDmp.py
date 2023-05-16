@@ -578,6 +578,9 @@ class CartDmp(DynamicalSystem, Parameterizable):
         self.y_init = trajectory_pos.ys[0, :]
         self.y_attr = trajectory_pos.ys[-1, :]
 
+        self.q0 = trajectory.ys[0, 3:]
+        self.q_goal = trajectory.ys[-1, 3:]
+
         # This needs to be computed for (optional) scaling of the forcing term.
         # Needs to be done BEFORE _compute_targets
         self._scaling_amplitudes = trajectory_pos.get_range_per_dim()
@@ -623,8 +626,8 @@ class CartDmp(DynamicalSystem, Parameterizable):
         # fix_quaternion_sign(q_dbg)
 
         # Set the goal attribute
-        self.q0 = quaternion.as_float_array(q[0])
-        self.q_goal = quaternion.as_float_array(q[-1])
+        # self.q0 = quaternion.as_float_array(q[0])
+        # self.q_goal = quaternion.as_float_array(q[-1])
 
         # Calculate a quaternion derivative which is needed to estimate the
         # rotation velocity
@@ -845,6 +848,7 @@ class CartDmp(DynamicalSystem, Parameterizable):
                     values = np.append(values, fa.get_param_vector())
         if "goal" in self._selected_param_names:
             values = np.append(values, self._y_attr)
+            values = np.append(values, self.q_goal)
         return values
 
     def set_param_vector(self, values):
@@ -869,6 +873,8 @@ class CartDmp(DynamicalSystem, Parameterizable):
                     offset += cur_size
         if "goal" in self._selected_param_names:
             self.y_attr = values[offset : offset + self.dim_dmp()]
+            self.q_goal = values[offset + self.dim_dmp() : offset + self.dim_dmp() + self.q_goal.size]
+
 
     def get_param_vector_size(self):
         return self._get_param_vector_size_local()
@@ -886,6 +892,7 @@ class CartDmp(DynamicalSystem, Parameterizable):
                     size += fa.get_param_vector_size()
         if "goal" in self._selected_param_names:
             size += self.dim_dmp()
+            size += self.q_goal.size
         return size
 
     @staticmethod

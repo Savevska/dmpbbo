@@ -65,11 +65,16 @@ def main():
     n_samples = args.n
     # sigma = args.sigma
 
+    print(dmp_rarm._dim_y)
+    print(parameter_vector_rarm.size)
+
     # Custom sigmas for position and orientation
     sigma_pos_rarm = np.tile(0.5, 3).reshape((1,-1))
     sigma_rot_rarm = np.tile(pi/2, 3).reshape((1,-1))
+    sigma_goal_rarm = np.array([[0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]])
     sigma_rarm = np.column_stack((sigma_pos_rarm, sigma_rot_rarm))
-    sigma_rarm = np.tile(sigma_rarm, int(parameter_vector_rarm.size/sigma_rarm.size))
+    sigma_rarm = np.tile(sigma_rarm, int((6*15)/sigma_rarm.size))
+    sigma_rarm = np.column_stack((sigma_rarm, sigma_goal_rarm))
     covar_init_rarm = sigma_rarm * sigma_rarm * np.eye(parameter_vector_rarm.size)
     distribution_rarm = DistributionGaussian(parameter_vector_rarm, covar_init_rarm)
 

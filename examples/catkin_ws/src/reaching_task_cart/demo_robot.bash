@@ -4,6 +4,7 @@ D=results_test
 
 ################################################################################
 # STEP 1: Train the DMP with a trajectory. Try it with different # basis functions
+python3 step1_train_dmp_from_trajectory_file.py trajectories/trajectory_cart_rarm.txt trajectories/trajectory_cart_larm.txt ${D}/training --n 15
 python3 step1_train_dmp_from_trajectory_file.py trajectories/trajectory_cart_rarm_optimal.txt trajectories/trajectory_cart_larm_optimal.txt ${D}/training --n 20
 # 10 basis functions look good; choose it as initial DMP for optimization
 cp ${D}/training/dmp_rarm_trained_20.json ${D}/dmp_rarm_initial.json

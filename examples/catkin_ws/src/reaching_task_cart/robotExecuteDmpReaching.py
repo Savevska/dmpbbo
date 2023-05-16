@@ -74,12 +74,12 @@ class DmpExecution:
     print(self.dmp_rarm.dim_y)
 
     # same time vector
-    # self.ts = self.dmp_rarm.ts_train
+    self.ts = self.dmp_rarm.ts_train
     # longer time vector
-    tau_exec = 1.3 * self.dmp_rarm.tau
-    dt = 1/120 
-    n_time_steps = int(tau_exec / dt)
-    self.ts = np.linspace(0, tau_exec, n_time_steps, dtype=float)  
+    # tau_exec = 1.3 * self.dmp_rarm.tau
+    # dt = 1/120 
+    # n_time_steps = int(tau_exec / dt)
+    # self.ts = np.linspace(0, tau_exec, n_time_steps, dtype=float)  
 
     msg_rarm = rospy.wait_for_message(topic="/right_arm_controller/state", topic_type=JointTrajectoryControllerState, timeout=1)
     # msg_larm = rospy.wait_for_message(topic="/left_arm_controller/state", topic_type=JointTrajectoryControllerState, timeout=1)
@@ -173,9 +173,9 @@ class DmpExecution:
     #   self.yd_state[0][0:7] = np.array([msg.actual.velocities])
     #   self.ydd_state[0][0:7] = np.array([msg.actual.velocities]) + self.yd_state[0][0:7]
     # if "arm_right" in msg.joint_names[0]:
-    self.y_state = np.array([msg.actual.positions])
-    self.yd_state = np.array([msg.actual.velocities])
     self.ydd_state = -np.array([msg.actual.velocities]) + self.yd_state
+    self.yd_state = np.array([msg.actual.velocities])
+    self.y_state = np.array([msg.actual.positions])
     # if "head" in msg.joint_names[0]:
     #   self.y_state[0][14:16] = np.array([msg.actual.positions])
     #   self.yd_state[0][14:16] = np.array([msg.actual.velocities])
@@ -260,7 +260,7 @@ class DmpExecution:
   
   def get_state(self, dt):
     try:
-      self.trans = self.tfBuffer.lookup_transform("odom", 'wrist_right_ft_link', rospy.Time(), rospy.Duration(dt))
+      self.trans = self.tfBuffer.lookup_transform("base_link", 'wrist_right_ft_link', rospy.Time(), rospy.Duration(dt))
       self.trans_left = self.tfBuffer.lookup_transform("odom", 'left_sole_link', rospy.Time(), rospy.Duration(dt))
       self.trans_right = self.tfBuffer.lookup_transform("odom", 'right_sole_link', rospy.Time(), rospy.Duration(dt))
     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
@@ -279,8 +279,8 @@ class DmpExecution:
     # self.ee_pos = np.array([[self.trans.transform.translation.x, self.trans.transform.translation.y, self.trans.transform.translation.z]])
     # self.lf_pos = np.array([[self.trans_left.transform.translation.x, self.trans_left.transform.translation.y, self.trans_left.transform.translation.z]])
     # self.rf_pos = np.array([[self.trans_right.transform.translation.x, self.trans_right.transform.translation.y, self.trans_right.transform.translation.z]])
-
-    costs = np.column_stack((self.y_state, self.yd_state, self.ydd_state, self.zmp, self.ee_pos, self.ee_rot, self.lf_pos, self.rf_pos))
+    
+    costs = np.column_stack((self.y_state, self.yd_state, self.ydd_state, np.array([self.pos_rarm_des]), np.array([self.vel_rarm_des]), np.array([self.acc_rarm_des]), self.zmp, self.ee_pos, self.ee_rot, self.lf_pos, self.rf_pos))
     return costs[0].tolist()
   
   def reset_pose(self):
@@ -316,13 +316,16 @@ class DmpExecution:
     x_phase_larm, _ = self.dmp_larm._phase_system_rot.integrate_start()
     x_larm, xd_larm = self.dmp_larm.integrate_start()
     
-    for i in range(len(self.ts)-1):
+    for i in range(len(self.ts)):
       if not self.failed():
-        dt = self.ts[i+1] - self.ts[i]
-        pos_rarm_des, vel_rarm_des, acc_rarm_des = self.dmp_rarm.states_as_pos_vel_acc(x_rarm, xd_rarm)
+        if i < (len(self.ts)-1):
+          dt = self.ts[i+1] - self.ts[i]
+        else:
+          dt = self.ts[-1] - self.ts[-2]
+        self.pos_rarm_des, self.vel_rarm_des, self.acc_rarm_des = self.dmp_rarm.states_as_pos_vel_acc(x_rarm, xd_rarm)
         pos_larm_des, vel_larm_des, acc_larm_des = self.dmp_larm.states_as_pos_vel_acc(x_larm, xd_larm)
 
-        self.integrateStep(dt, pos_rarm_des, rot_rarm_des, pos_larm_des, rot_larm_des)
+        self.integrateStep(dt, self.pos_rarm_des, rot_rarm_des, pos_larm_des, rot_larm_des)
               
         costs = self.get_state(dt)
         self.cost_vars.append(costs)
