@@ -54,14 +54,11 @@ class TaskReach(Task):
 
         # If the robot failed return cost = 10 for the overall cost and equal penalties for all terms.
         if cop_x[-1] == 100:
-            costs = np.zeros(1+5)
+            n=4
+            costs = np.zeros(1+n)
             costs[0] = 10
-            costs[1] = costs[0]/5
-            costs[2] = costs[0]/5
-            costs[3] = costs[0]/5
-            costs[4] = costs[0]/5
-            costs[5] = costs[0]/5
-
+            for i in range(1, n+1):
+                costs[i] = costs[0]/n
             return costs
 
         # Else, calculate the separate terms and multiply by their weights  
@@ -144,12 +141,12 @@ class TaskReach(Task):
             dist_to_traj = (x_dist + y_dist + z_dist)/3
 
             # costs sum
-            costs = np.zeros(1+5)
+            costs = np.zeros(1+4)
             costs[1] = self.stability_weight_* (np.sum(stability_cost)/len(stability_cost))
             costs[2] = self.goal_weight_*dist_to_goal
             costs[3] = self.goal_orientation_weight_*orientation_cost
-            costs[4] = self.acc_weight_*acc_cost
-            costs[5] = self.traj_weight_*dist_to_traj
+            # costs[4] = self.acc_weight_*acc_cost
+            costs[4] = self.traj_weight_*dist_to_traj
 
             costs[0] = np.sum(costs[1:])
             

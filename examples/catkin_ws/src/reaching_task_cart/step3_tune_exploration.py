@@ -21,7 +21,9 @@ import argparse
 import os
 from pathlib import Path
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/home/user/talos_ws/dmpbbo")
+
 # sys.path.append("/Users/kristina/WORK/dmpbbo")
 
 from dmpbbo.dmps.Trajectory import Trajectory
@@ -74,7 +76,11 @@ def main():
     sigma_goal_rarm = np.array([[0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]])
     sigma_rarm = np.column_stack((sigma_pos_rarm, sigma_rot_rarm))
     sigma_rarm = np.tile(sigma_rarm, int((6*15)/sigma_rarm.size))
-    sigma_rarm = np.column_stack((sigma_rarm, sigma_goal_rarm))
+    if "goal" in dmp_rarm._selected_param_names:
+        print("goal in params")
+        sigma_rarm = np.column_stack((sigma_rarm, sigma_goal_rarm))
+    else:
+        print("goal not in params")
     covar_init_rarm = sigma_rarm * sigma_rarm * np.eye(parameter_vector_rarm.size)
     distribution_rarm = DistributionGaussian(parameter_vector_rarm, covar_init_rarm)
 

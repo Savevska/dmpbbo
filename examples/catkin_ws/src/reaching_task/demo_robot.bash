@@ -4,7 +4,7 @@ D=results_test
 
 ################################################################################
 # STEP 1: Train the DMP with a trajectory. Try it with different # basis functions
-python3 step1_train_dmp_from_trajectory_file.py trajectories/trajectory.txt ${D}/training --n 30 --save
+python3 step1_train_dmp_from_trajectory_file.py trajectories/trajectory.txt ${D}/training --n 20 --save
 # 10 basis functions look good; choose it as initial DMP for optimization
 cp ${D}/training/dmp_trained_20.json ${D}/dmp_initial.json
 
@@ -47,7 +47,8 @@ python3 plot_rollouts.py ${DU} ${D}/task.json --save # Save the results as a png
 
 
 # 20.0 looks good; choose it as initial distribution
-cp ${D}/tune_exploration/sigma_20.000/distribution.json ${D}/distribution_initial.json
+python3 step3_tune_exploration.py ${D}/dmp_initial.json ${D}/tune_exploration --save --n 30 --sigma   1.0
+cp ${D}/tune_exploration/sigma_1.000/distribution.json ${D}/distribution_initial.json
 
 
 ################################################################################

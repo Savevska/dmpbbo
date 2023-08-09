@@ -24,7 +24,9 @@
 import numpy as np
 import sys
 
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/home/user/talos_ws/dmpbbo")
+
 import argparse
 # from dmpbbo.dmps import Dmp
 # from dmpbbo.dmps import Trajectory
@@ -58,7 +60,7 @@ class DmpExecution:
     self.cost_vars_rarm_filename = args.cost_vars_rarm_filename
     self.cost_vars_larm_filename = args.cost_vars_larm_filename  
 
-    self.rate = rospy.Rate(120)
+    self.rate = rospy.Rate((120))
     # self.last_pub_time = time.time()
     # self.min_pub_dt = 1 /1200
 
@@ -105,7 +107,8 @@ class DmpExecution:
     self.zmp = np.array([[0.0, 0.0]])
     self.torso_z = 1.0
 
-    self.cost_vars_cols = self.y_state.shape[1] + self.yd_state.shape[1] + self.ydd_state.shape[1] + self.zmp.shape[1] + self.ee_pos.shape[1] + self.ee_rot.shape[1] + self.lf_pos.shape[1] + self.rf_pos.shape[1]
+    self.cost_vars_cols = self.y_state.shape[1] + self.yd_state.shape[1] + self.ydd_state.shape[1] + 9 + self.zmp.shape[1] + self.ee_pos.shape[1] + self.ee_rot.shape[1] + self.lf_pos.shape[1] + self.rf_pos.shape[1]
+
 
     queue_size = 10
     self.left_arm_pub = rospy.Publisher("/left_arm_controller/command", JointTrajectory, queue_size=queue_size, tcp_nodelay=True)
@@ -248,9 +251,9 @@ class DmpExecution:
     
     poses = PoseArray()
     poses.poses = [pose_rarm, pose_larm]
+    self.rate.sleep()
     self.poses_pub.publish(poses)
 
-    self.rate.sleep()
 
   def failed(self):
     if self.torso_z < 0.5:
@@ -286,12 +289,19 @@ class DmpExecution:
   def reset_pose(self):
     rospy.sleep(3)
     freq = 0.2
-    left_arm_traj =      self.make_trj_to_point(self.left_arm_names, [0.3, 0.4, -0.5, -1.5, 0.0, 0.0, 0.0], [], [], freq)
-    right_arm_traj =     self.make_trj_to_point(self.right_arm_names, [-0.3, -0.4, 0.5, -1.5, 0.0, 0.0, 0.0], [], [], freq)
+    # left_arm_traj =      self.make_trj_to_point(self.left_arm_names, [0.3, 0.4, -0.5, -1.5, 0.0, 0.0, 0.0], [], [], freq)
+    # right_arm_traj =     self.make_trj_to_point(self.right_arm_names, [-0.3, -0.4, 0.5, -1.5, 0.0, 0.0, 0.0], [], [], freq)
+    # head_traj =          self.make_trj_to_point(self.head_names, [0.0, 0.0], [], [], freq)
+    # left_leg_traj =      self.make_trj_to_point(self.left_leg_names, [0.0, 0.0, -0.4, 0.8, -0.4, 0.0], [], [], freq)
+    # right_leg_traj =     self.make_trj_to_point(self.right_leg_names, [0.0, 0.0, -0.4, 0.8, -0.4, 0.0], [], [], freq)
+    # torso_traj =         self.make_trj_to_point(self.torso_names, [0.0, 0.0], [], [], freq)
+
+    left_arm_traj =      self.make_trj_to_point(self.left_arm_names, [0.6,  0.3, -0.5, -0.6,  0.0,  0.0, 0.002], [], [], freq)
+    right_arm_traj =     self.make_trj_to_point(self.right_arm_names, [-0.6, -0.3, 0.5, -0.6, 0.0, 0.0, 0.002], [], [], freq)
     head_traj =          self.make_trj_to_point(self.head_names, [0.0, 0.0], [], [], freq)
-    left_leg_traj =      self.make_trj_to_point(self.left_leg_names, [0.0, 0.0, -0.4, 0.8, -0.4, 0.0], [], [], freq)
-    right_leg_traj =     self.make_trj_to_point(self.right_leg_names, [0.0, 0.0, -0.4, 0.8, -0.4, 0.0], [], [], freq)
-    torso_traj =         self.make_trj_to_point(self.torso_names, [0.0, 0.0], [], [], freq)
+    left_leg_traj =      self.make_trj_to_point(self.left_leg_names, [0.0,  0.0, -0.2,  0.5, -0.28, 0.0], [], [], freq)
+    right_leg_traj =     self.make_trj_to_point(self.right_leg_names, [0.0,  0.0, -0.2,  0.5 , -0.28, 0.0], [], [], freq)
+    torso_traj =         self.make_trj_to_point(self.torso_names, [0.0,  0.25], [], [], freq)
 
     self.left_arm_pub.publish(left_arm_traj)
     self.right_arm_pub.publish(right_arm_traj)

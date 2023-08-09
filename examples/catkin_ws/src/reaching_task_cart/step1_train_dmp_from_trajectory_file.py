@@ -21,7 +21,9 @@ import argparse
 import os
 from pathlib import Path
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/home/user/talos_ws/dmpbbo")
+
 # sys.path.append("/Users/kristina/WORK/dmpbbo")
 import numpy as np
 from matplotlib import pyplot as plt
@@ -94,6 +96,7 @@ def main():
 
         # These are the parameters that will be optimized.
         dmp_rarm.set_selected_param_names(["weights", "goal"])
+        # dmp_rarm.set_selected_param_names(["weights"])
         dmp_larm.set_selected_param_names(["weights"])
 
         ################################################

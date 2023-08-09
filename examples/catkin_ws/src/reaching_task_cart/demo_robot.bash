@@ -4,15 +4,23 @@ D=results_test
 
 ################################################################################
 # STEP 1: Train the DMP with a trajectory. Try it with different # basis functions
+# initial long trajectory
 python3 step1_train_dmp_from_trajectory_file.py trajectories/trajectory_cart_rarm.txt trajectories/trajectory_cart_larm.txt ${D}/training --n 15
+
+# initial short trajectory
+python3 step1_train_dmp_from_trajectory_file.py trajectories/trajectory_cart_rarm.txt trajectories/trajectory_cart_larm.txt ${D}/training --n 15
+
+# optimal long trajectory
 python3 step1_train_dmp_from_trajectory_file.py trajectories/trajectory_cart_rarm_optimal.txt trajectories/trajectory_cart_larm_optimal.txt ${D}/training --n 20
-# 10 basis functions look good; choose it as initial DMP for optimization
-cp ${D}/training/dmp_rarm_trained_20.json ${D}/dmp_rarm_initial.json
-cp ${D}/training/dmp_larm_trained_20.json ${D}/dmp_larm_initial.json
+
+# 15 basis functions look good; choose it as initial DMP for optimization
+cp ${D}/training/dmp_rarm_trained_15.json ${D}/dmp_rarm_initial.json
+cp ${D}/training/dmp_larm_trained_15.json ${D}/dmp_larm_initial.json
 
 ################################################################################
 # STEP 2: Define and save the task
 python3 step2_define_task.py ${D} task.json trajectories/trajectory.txt
+python3 step2_define_task.py ${D} task.json ${D}/dmp_rarm_initial.json
 
 
 ################################################################################

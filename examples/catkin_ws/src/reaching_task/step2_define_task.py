@@ -20,7 +20,8 @@ import argparse
 import os
 from pathlib import Path
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/home/user/talos_ws/dmpbbo")
 import jsonpickle
 
 from TaskReach import TaskReach
@@ -40,12 +41,21 @@ def main():
     ee_pos_goal = [0.65, -0.4, 0.0] 
     pos_margin = 0
     ref_cop = [0.0, 0.0]
-    stability_weight = 0.001
-    goal_weight = 1000
-    traj_weight = 10 
+    # stability_weight = 0.001
+    # goal_weight = 1000
+    # traj_weight = 10 
+
+    stability_weight = 15.0
+    goal_weight = 20.0
+    goal_orientation_weight = 4.0
+    traj_weight = 0.5
+    acc_weight = 10.0
+    vel_weight = 7.0
+
 
     traj_demonstrated = Trajectory.loadtxt(args.traj_filename, 0)
-    task = TaskReach(ee_pos_goal, pos_margin, ref_cop, stability_weight, goal_weight, traj_weight, traj_demonstrated)
+    task = TaskReach(ee_pos_goal, pos_margin, ref_cop, stability_weight, goal_weight, goal_orientation_weight, acc_weight, vel_weight, traj_weight, traj_demonstrated)
+
 
     # Save the task instance itself
     os.makedirs(args.directory, exist_ok=True)

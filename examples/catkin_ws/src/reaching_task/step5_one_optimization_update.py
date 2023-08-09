@@ -17,7 +17,8 @@
 """ Script for doing one optimization update. """
 
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/home/user/talos_ws/dmpbbo")
 import argparse
 
 from dmpbbo.bbo_of_dmps.LearningSessionTask import LearningSessionTask

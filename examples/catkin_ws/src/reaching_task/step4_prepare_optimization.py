@@ -16,7 +16,8 @@
 # along with DmpBbo.  If not, see <http://www.gnu.org/licenses/>.
 """ Script for preparing the optimization. """
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/home/user/talos_ws/dmpbbo")
 import argparse
 from pathlib import Path
 
@@ -48,7 +49,7 @@ def main():
 
     n_samples_per_update = 30
 
-    updater_name = "decay"
+    updater_name = "adapt"
     if updater_name == "mean":
         updater = UpdaterMean(eliteness=10, weighting="PI-BB")
     elif updater_name == "decay":
@@ -57,8 +58,8 @@ def main():
         updater = UpdaterCovarAdaptation(
             eliteness=10,
             weighting="PI-BB",
-            max_level=1.0,
-            min_level=0.01,
+            diagonal_max=None,
+            diagonal_min=None,
             diag_only=False,
             learning_rate=0.3,
         )

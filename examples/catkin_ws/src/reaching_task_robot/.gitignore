@@ -1,0 +1,4 @@
+results_*
+trajectories/
+.ipynb_checkpoints
+*.html

@@ -16,7 +16,9 @@
 # along with DmpBbo.  If not, see <http://www.gnu.org/licenses/>.
 """ Script for preparing the optimization. """
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/home/user/talos_ws/dmpbbo")
+
 # sys.path.append("/Users/kristina/WORK/dmpbbo")
 import argparse
 from pathlib import Path

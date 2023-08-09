@@ -21,10 +21,11 @@ import argparse
 import os
 from pathlib import Path
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/home/user/talos_ws/dmpbbo")
 import numpy as np
 from matplotlib import pyplot as plt
-
+from math import pi
 import dmpbbo.json_for_cpp as jc
 from dmpbbo.bbo.DistributionGaussian import DistributionGaussian
 
@@ -55,20 +56,37 @@ def main():
     # sigma = args.sigma
 
     # Custom sigmas for each limb
+    sigma_arms = np.tile(1.5, 14).reshape((1,-1))
     # sigma_arms = np.tile(1.0, 14).reshape((1,-1))
+
     # sigma_head = np.tile(0.1, 2).reshape((1,-1))
     # sigma_legs = np.tile(0.01, 12).reshape((1,-1))
     # sigma_torso = np.tile(0.6, 2).reshape((1,-1))
 
-    sigma_arms = 2*np.array([[1.0, 1.0, 1.0, 1.0, 0.3, 0.3, 0.3, 1.0, 1.0, 1.0, 1.0, 0.3, 0.3, 0.3]])
-    sigma_head = 2*np.tile(0.01, 2).reshape((1,-1))
-    sigma_legs = 2*np.tile(0.3, 12).reshape((1,-1)) #0.01 for stable learning
-    sigma_torso = 2*np.tile(0.8, 2).reshape((1,-1))
+    # sigma_arms = np.array([[1.0, 1.0, 1.0, 1.0, 0.3, 0.3, 0.3, 1.0, 1.0, 1.0, 1.0, 0.3, 0.3, 0.3]])
+    sigma_head = np.tile(0.01, 2).reshape((1,-1))
+    # sigma_legs = 2*np.tile(0.3, 12).reshape((1,-1)) #0.01 for stable learning
+    sigma_torso = np.tile(0.8, 2).reshape((1,-1))
 
-    sigma = np.column_stack((sigma_arms, sigma_head, sigma_legs, sigma_torso))
-    sigma = np.tile(sigma, int(parameter_vector.size/sigma.size))
-    covar_init = sigma * sigma * np.eye(parameter_vector.size)
-    distribution = DistributionGaussian(parameter_vector, covar_init)
+
+    if "goal" in dmp._selected_param_names:
+        print("goal in params")
+        sigma = np.column_stack((sigma_arms, sigma_head, sigma_torso))
+        sigma_goal = np.column_stack((np.tile(5*(pi/180), 14).reshape((1,-1)), np.tile(0.0, 2).reshape((1,-1)), np.tile(2*(pi/180), 2).reshape((1,-1))))
+        # sigma_goal = np.column_stack((np.tile(2*(pi/180), 14).reshape((1,-1)), np.tile(0.0, 2).reshape((1,-1)), np.tile(1*(pi/180), 2).reshape((1,-1))))
+
+        sigma = np.tile(sigma, int((dmp._dim_y*20)/sigma.size))
+        sigma = np.column_stack((sigma, sigma_goal))
+        # sigma = 0.2*parameter_vector
+        covar_init = sigma * sigma * np.eye(parameter_vector.size)
+        distribution = DistributionGaussian(parameter_vector, covar_init)
+    else:
+        print("goal not in params")
+        # sigma = np.column_stack((sigma_arms, sigma_head, sigma_torso))
+        # sigma = np.tile(sigma, int(parameter_vector.size/sigma.size))
+        sigma = 0.25*parameter_vector
+        covar_init = sigma * sigma * np.eye(parameter_vector.size)
+        distribution = DistributionGaussian(parameter_vector, covar_init)
 
     filename = Path(directory, f"distribution.json")
     print(f"Saving sampling distribution to: {filename}")

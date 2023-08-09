@@ -20,7 +20,9 @@ import argparse
 import os
 from pathlib import Path
 import sys
-sys.path.append("/home/ksavevska/dmpbbo")
+# sys.path.append("/home/ksavevska/dmpbbo")
+sys.path.append("/home/user/talos_ws/dmpbbo")
+
 # sys.path.append("/Users/kristina/WORK/dmpbbo")
 import jsonpickle
 import dmpbbo.json_for_cpp as jc
@@ -52,7 +54,7 @@ def main():
     # traj_weight = 0.0 
 
     stability_weight = 5.0
-    goal_weight = 4.0
+    goal_weight = 4.5
     goal_orientation_weight = 0.5
     acc_weight = 0.5
     traj_weight = 0.5 

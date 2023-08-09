@@ -260,7 +260,7 @@ class CartDmp(DynamicalSystem, Parameterizable):
                     #  (np.multiply(self.fa_rot._model_params["widths"], 2)))
         # psi = np.exp(- np.square(x-self.centers_rot) /
                     #  (np.multiply(self.widths_rot, 2)))
-        fx = np.empty((3), dtype=np.float)
+        fx = np.empty((3), dtype=np.float64)
         for i in range(3):
             # Forcing function
             # sum( (w(i) * x) * psi/sum(psi) )
