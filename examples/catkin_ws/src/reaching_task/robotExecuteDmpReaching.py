@@ -155,6 +155,13 @@ class DmpExecution:
     #               "leg_left_1_joint", "leg_left_2_joint", "leg_left_3_joint", "leg_left_4_joint", "leg_left_5_joint", "leg_left_6_joint", \
     #               "leg_right_1_joint", "leg_right_2_joint", "leg_right_3_joint", "leg_right_4_joint", "leg_right_5_joint", "leg_right_6_joint", \
     #               "torso_1_joint", "torso_2_joint"]
+    while(self.left_arm_pub.get_num_connections() == 0 and \
+          self.right_arm_pub.get_num_connections() == 0 and \
+          self.head_pub.get_num_connections() == 0 and \
+          self.torso_pub.get_num_connections() == 0 and \
+          self.left_leg_pub.get_num_connections() == 0 and \
+          self.right_leg_pub.get_num_connections() == 0):
+        rospy.sleep(0.01)
   
   def base_callback(self, msg):
     self.torso_z = msg.pose.pose.position.z
