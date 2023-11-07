@@ -8,7 +8,8 @@ from matplotlib.gridspec import GridSpec
 import quaternion
 from dtaidistance import dtw
 from tf.transformations import euler_from_quaternion
-
+from filters import KalmanFilter
+from copy import copy 
 from dmpbbo.bbo_of_dmps.Task import Task
 
 class TaskReach(Task):
@@ -50,8 +51,13 @@ class TaskReach(Task):
         n_time_steps = cost_vars.shape[0]
         
         joint_states = cost_vars[:,:n_dims]
-        vel = cost_vars[:,n_dims:2*n_dims]
+        vel = cost_vars[:,4*n_dims:5*n_dims]
+        # actual acceleration
         acc = cost_vars[:,2*n_dims:3*n_dims]
+        # desired acceleration
+        acc_filtered = cost_vars[:,5*n_dims:6*n_dims]
+
+        
         cop_x = cost_vars[:,-n_misc]
         cop_y = cost_vars[:,-n_misc+1]
         
@@ -64,13 +70,18 @@ class TaskReach(Task):
         ee_rot_z = cost_vars[:,-n_misc+7]
         ee_rot_w = cost_vars[:,-n_misc+8]
 
+        # acc_kfs = [KalmanFilter(init_val=acc[0][i]) for i in range(acc.shape[1])]
+        # acc_filtered = copy(acc)
+        # for joint, acc_kf in enumerate(acc_kfs):
+        #     for i in range(acc.shape[0]):
+        #         acc_filtered[i][joint] = acc_kf.filt(acc[i][joint])
         # ee_rpy_x = cost_vars[:,-n_misc+5]
         # ee_rpy_y = cost_vars[:,-n_misc+6]
         # ee_rpy_z = cost_vars[:,-n_misc+7]
 
         # If the robot failed return cost = 10 for the overall cost and equal penalties for all terms.
         if cop_x[-1] == 100:
-            n=4
+            n=3
             costs = np.zeros(1+n)
             costs[0] = 10
             for i in range(1, n+1):
@@ -147,7 +158,7 @@ class TaskReach(Task):
             q_goal = quaternion.from_float_array([ee_rot_w[-1], ee_rot_x[-1], ee_rot_y[-1], ee_rot_z[-1]])
             orientation_cost = self.q_dist(q_desired, q_goal)
             
-            acc_sums = np.array([np.sum(acc[:,a]**2)/len(acc[:,a]) for a in range(acc.shape[1])])
+            acc_sums = np.array([np.sum(acc_filtered[:,a]**2)/len(acc_filtered[:,a]) for a in range(acc_filtered.shape[1])])
             acc_cost = np.sum(acc_sums)/len(acc_sums)
 
             vel_cost = np.sum(np.square(vel[-1]))/vel.shape[1]
@@ -174,12 +185,12 @@ class TaskReach(Task):
             # dist_to_traj = np.sum(dist_to_traj)/self.traj_demonstrated_._ys.shape[1]
             
             # costs sum
-            costs = np.zeros(1+4)
+            costs = np.zeros(1+3)
             costs[1] = self.stability_weight_* (np.sum(stability_cost)/len(stability_cost))
-            costs[2] = self.goal_weight_*dist_to_goal
+            costs[2] = self.goal_weight_*(dist_to_goal)
             costs[3] = self.goal_orientation_weight_*orientation_cost
-            costs[4] = self.traj_weight_*dist_to_traj
-            # costs[5] = self.acc_weight_*acc_cost
+            # costs[4] = self.traj_weight_*dist_to_traj
+            # costs[4] = self.acc_weight_*acc_cost
             # costs[6] = self.vel_weight_*vel_cost
 
 

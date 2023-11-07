@@ -18,6 +18,7 @@
 
 import argparse
 import os
+import numpy as np
 from pathlib import Path
 import sys
 # sys.path.append("/home/ksavevska/dmpbbo")
@@ -35,6 +36,9 @@ def main():
     parser.add_argument("directory", help="directory to write task to")
     parser.add_argument("filename", help="file to write task to")
     parser.add_argument("traj_filename", help="file to read trajectory from")
+    # parser.add_argument("stab_weight", help="file to read stability weight")
+    parser.add_argument("stab_weight", help="stability weight")
+
 
     args = parser.parse_args()
 
@@ -45,11 +49,12 @@ def main():
     # goal_weight = 1000
     # traj_weight = 10 
 
-    stability_weight = 15.0
+    stability_weight = float(args.stab_weight)
+    # stability_weight = 120.0
     goal_weight = 20.0
     goal_orientation_weight = 4.0
-    traj_weight = 0.5
-    acc_weight = 10.0
+    traj_weight = 1.5
+    acc_weight = 5.0
     vel_weight = 7.0
 
 

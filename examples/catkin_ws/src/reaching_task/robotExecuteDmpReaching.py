@@ -42,8 +42,10 @@ from std_msgs.msg import Float32
 from visualization_msgs.msg import Marker
 import tf2_ros
 from tf.transformations import euler_from_quaternion
+# from tf2_msgs.msg import TFMessage
 # import copy
 # import os
+# from filters import KalmanFilter
 
 
 # import time
@@ -90,6 +92,13 @@ class DmpExecution:
     self.yd_state = np.array(msg.velocity)[self.ind].reshape(1,-1)
     self.ydd_state = np.zeros((1,self.dmp.dim_y))
 
+    self.y_des = np.zeros((1,self.dmp.dim_y))
+    self.yd_des = np.zeros((1,self.dmp.dim_y))
+    self.ydd_des = np.zeros((1,self.dmp.dim_y))
+
+    # self.vel_kf = np.array([KalmanFilter(R=10e-4, init_val=self.yd_state[0][i]) for i in range(self.yd_state.shape[1])])
+    # self.acc_kf = np.array([KalmanFilter(R=10e-4, init_val=self.ydd_state[0][i]) for i in range(self.ydd_state.shape[1])])
+
     # self.y_state = np.zeros((1,self.dmp.dim_y))
     # self.yd_state = np.zeros((1,self.dmp.dim_y))
     # self.ydd_state = np.zeros((1,self.dmp.dim_y))
@@ -115,7 +124,7 @@ class DmpExecution:
     self.zmp = np.array([[0.0, 0.0]])
     self.torso_z = 1.0
 
-    self.cost_vars_cols = self.y_state.shape[1] + self.yd_state.shape[1] + self.ydd_state.shape[1] + self.zmp.shape[1] + self.ee_pos.shape[1] + self.ee_rot.shape[1] + self.lf_pos.shape[1] + self.rf_pos.shape[1]
+    self.cost_vars_cols = 2*self.y_state.shape[1] + 2*self.yd_state.shape[1] + 2*self.ydd_state.shape[1] + self.zmp.shape[1] + self.ee_pos.shape[1] + self.ee_rot.shape[1] + self.lf_pos.shape[1] + self.rf_pos.shape[1]
 
 
     queue_size = 10
@@ -180,9 +189,21 @@ class DmpExecution:
     # self.y_state[:] = pos#np.array([pos])
     # self.yd_state[:] = vel# np.array([vel])
     
-    self.ydd_state = np.array((self.yd_state - np.array(msg.velocity)[self.ind]))
-    self.y_state = np.array(msg.position)[self.ind].reshape(1,-1)
+    # Without filtering
+    self.ydd_state = np.array((-self.yd_state + np.array(msg.velocity)[self.ind]))*120
     self.yd_state = np.array(msg.velocity)[self.ind].reshape(1,-1)
+    self.y_state = np.array(msg.position)[self.ind].reshape(1,-1)
+
+    # With filtering
+    # self.ydd_state = np.array((-self.yd_state + np.array((-self.y_state + np.array(msg.position)[self.ind]))*1000))*1000
+    # self.yd_state = np.array((-self.y_state + np.array(msg.position)[self.ind]))*1000
+    # for i in range(len(self.yd_state)):
+    #   self.yd_state[0][i] = self.vel_kf[i].filt(self.yd_state[0][i])
+    #   self.ydd_state[0][i] = self.acc_kf[i].filt(self.ydd_state[0][i])
+    # self.y_state = np.array(msg.position)[self.ind].reshape(1,-1)
+
+
+
 
     # JointTrajectoryControllerState message
     # if "arm_left" in msg.joint_names[0]:
@@ -215,7 +236,7 @@ class DmpExecution:
 
       # trajectory msg
       trj = JointTrajectory()
-      trj.header.stamp = rospy.Time.now()
+      # trj.header.stamp = rospy.Time.now()
       trj.joint_names = names
 
       # point towards which we interpolate
@@ -251,7 +272,7 @@ class DmpExecution:
     # left_leg_vel =      yd_des[16:22]
     # right_leg_vel =     yd_des[22:28]
     # torso_vel =         yd_des[28:30]
-    torso_vel =         ydd_des[16:18]
+    torso_vel =         yd_des[16:18]
 
 
     left_arm_acc =      ydd_des[0:7]
@@ -268,11 +289,11 @@ class DmpExecution:
     head_traj =          self.make_trj_to_point(self.head_names, head_pos, head_vel, head_acc, 1/dt)
     # left_leg_traj =      self.make_trj_to_point(self.left_leg_names, left_leg_pos, left_leg_vel, left_leg_acc, 1/dt)
     # right_leg_traj =     self.make_trj_to_point(self.right_leg_names, right_leg_pos, right_leg_vel, right_leg_acc, 1/dt)
-    left_leg_traj =      self.make_trj_to_point(self.left_leg_names, [0.0,  0.0, -0.26,  0.6, -0.33, 0.0], [], [], 1/dt)
-    right_leg_traj =     self.make_trj_to_point(self.right_leg_names, [0.0,  0.0, -0.26,  0.6 , -0.33, 0.0], [], [], 1/dt)
+    left_leg_traj =      self.make_trj_to_point(self.left_leg_names, [0.0,  0.0, -0.26,  0.6, -0.33, 0.0], [0.0]*6, [0.0]*6, 1/dt)
+    right_leg_traj =     self.make_trj_to_point(self.right_leg_names, [0.0,  0.0, -0.26,  0.6 , -0.33, 0.0], [0.0]*6, [0.0]*6, 1/dt)
     torso_traj =         self.make_trj_to_point(self.torso_names, torso_pos, torso_vel, torso_acc, 1/dt)
 
-    # self.rate.sleep()
+    self.rate.sleep()
     self.left_arm_pub.publish(left_arm_traj)
     self.right_arm_pub.publish(right_arm_traj)
     self.head_pub.publish(head_traj)
@@ -300,9 +321,9 @@ class DmpExecution:
   
   def get_state(self, dt):
     try:
-      self.trans = self.tfBuffer.lookup_transform("base_link", 'wrist_right_ft_link', rospy.Time(), rospy.Duration(dt))
-      self.trans_left = self.tfBuffer.lookup_transform("odom", 'left_sole_link', rospy.Time(), rospy.Duration(dt))
-      self.trans_right = self.tfBuffer.lookup_transform("odom", 'right_sole_link', rospy.Time(), rospy.Duration(dt))
+      self.trans = self.tfBuffer.lookup_transform("base_link", 'wrist_right_ft_link',rospy.Time(0))
+      self.trans_left = self.tfBuffer.lookup_transform("odom", 'left_sole_link', rospy.Time(0))
+      self.trans_right = self.tfBuffer.lookup_transform("odom", 'right_sole_link', rospy.Time(0))
     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
         self.rate.sleep()
 
@@ -314,12 +335,12 @@ class DmpExecution:
     
     self.rf_pos[0][:] = [self.trans_right.transform.translation.x, self.trans_right.transform.translation.y, self.trans_right.transform.translation.z]
 
-
+    # tf_test = np.array([[self.tf_msg.transform.translation.x, self.tf_msg.transform.translation.y, self.tf_msg.transform.translation.z]])
     # self.ee_pos = np.array([[self.trans.transform.translation.x, self.trans.transform.translation.y, self.trans.transform.translation.z]])
     # self.lf_pos = np.array([[self.trans_left.transform.translation.x, self.trans_left.transform.translation.y, self.trans_left.transform.translation.z]])
     # self.rf_pos = np.array([[self.trans_right.transform.translation.x, self.trans_right.transform.translation.y, self.trans_right.transform.translation.z]])
 
-    costs = np.column_stack((self.y_state, self.yd_state, self.ydd_state, self.zmp, self.ee_pos, self.ee_rot, self.lf_pos, self.rf_pos))
+    costs = np.column_stack((self.y_state, self.yd_state, self.ydd_state, np.array([self.y_des]), np.array([self.yd_des]), np.array([self.ydd_des]), self.zmp, self.ee_pos, self.ee_rot, self.lf_pos, self.rf_pos))
     return costs[0].tolist()
   
   def reset_pose(self):
@@ -362,8 +383,8 @@ class DmpExecution:
         else:
           dt = self.ts[-1] - self.ts[-2]
         # dt = self.ts[i+1] - self.ts[i]
-        y_des, yd_des, ydd_des = self.dmp.states_as_pos_vel_acc(x, xd)
-        self.integrateStep(dt, y_des, yd_des, ydd_des)
+        self.y_des, self.yd_des, self.ydd_des = self.dmp.states_as_pos_vel_acc(x, xd)
+        self.integrateStep(dt, self.y_des, self.yd_des, self.ydd_des)
               
         costs = self.get_state(dt)
         self.cost_vars.append(costs)
