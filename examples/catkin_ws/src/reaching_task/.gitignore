@@ -1,5 +1,6 @@
 results_*
 automatic_search_*/
+meta_learning_*/
 plots_*/
 trajectories/
 .ipynb_checkpoints

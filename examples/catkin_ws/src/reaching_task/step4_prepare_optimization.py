@@ -17,7 +17,9 @@
 """ Script for preparing the optimization. """
 import sys
 # sys.path.append("/home/ksavevska/dmpbbo")
-sys.path.append("/home/user/talos_ws/dmpbbo")
+# sys.path.append("/home/user/talos_ws/dmpbbo")
+sys.path.append("/home/hdd/ksavevska/dmpbbo")
+
 import argparse
 from pathlib import Path
 

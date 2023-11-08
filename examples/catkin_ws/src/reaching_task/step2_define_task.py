@@ -22,7 +22,9 @@ import numpy as np
 from pathlib import Path
 import sys
 # sys.path.append("/home/ksavevska/dmpbbo")
-sys.path.append("/home/user/talos_ws/dmpbbo")
+# sys.path.append("/home/user/talos_ws/dmpbbo")
+sys.path.append("/home/hdd/ksavevska/dmpbbo")
+
 import jsonpickle
 
 from TaskReach import TaskReach

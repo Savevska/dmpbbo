@@ -25,7 +25,9 @@ import numpy as np
 import os
 import sys
 # sys.path.append("/home/ksavevska/dmpbbo")
-sys.path.append("/home/user/talos_ws/dmpbbo")
+# sys.path.append("/home/user/talos_ws/dmpbbo")
+sys.path.append("/home/hdd/ksavevska/dmpbbo")
+
 import argparse
 # from dmpbbo.dmps import Dmp
 # from dmpbbo.dmps import Trajectory

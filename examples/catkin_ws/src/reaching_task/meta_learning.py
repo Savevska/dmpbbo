@@ -1,6 +1,6 @@
-import gym
+import gymnasium as gym
 import numpy as np
-from gym import spaces
+from gymnasium import spaces
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
@@ -13,7 +13,7 @@ class MetaLearningEnv(gym.Env):
 
     metadata = {"render_modes": ["human"], "render_fps": 30}
 
-    def __init__(self, arg1, arg2):
+    def __init__(self):
         super().__init__()
         # Define action and observation space
         # They must be gym.spaces objects
@@ -26,21 +26,31 @@ class MetaLearningEnv(gym.Env):
 
     def step(self, action):
         # Save action as stability weight
+        print("Apply action...")
+        print(action)
         with open("meta_learning_stability_weight/weight.txt", "w") as weight_file:
-            weight_file.write(str(action))
+            weight_file.write(str(action[0][0]))
         
+        print("Run learning...")
         # Run the main learning for 30 updates
-        process = subprocess.run("bash run_one_learning.bash", capture_output=True, shell=True)
-        process.wait()
-        # os.system("bash run_one_learning.bash")
+        # process = subprocess.run("/home/hdd/ksavevska/dmpbbo/examples/catkin_ws/src/reaching_task/run_one_learning.bash", capture_output=True)
+        # process.wait()
+        os.system("bash run_one_learning.bash")
 
+        print("Collect observations...")
         # calculate costs as observations
-        observation = self.calculate_costs("meta_learning_stability_weight/results_w_stab_"+str(action))
-        
+        observation = self.calculate_costs("meta_learning_stability_weight/results_w_stab_"+str(action[0][0])+"/", action[0][0])
+        print(observation)
+
+        print("Calculate reward...")
         # calculate reward from observations
         reward = self.calculate_reward(observation)
+        print(reward)
         
-        return observation, reward
+        terminated = False
+        truncated = False
+        info = dict()
+        return observation, reward, terminated, truncated, info
     
     def calculate_costs(self, results_folder, stability_weight):
         updates = np.sort(os.listdir(results_folder))
@@ -68,7 +78,7 @@ class MetaLearningEnv(gym.Env):
     
     def reset(self, seed=None, options=None):
         observation = 10*np.ones((1,4))
-        return observation
+        return observation, ""
 
 
 def main():
